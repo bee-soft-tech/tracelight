@@ -1,0 +1,94 @@
+/*
+ * Default Tracelight theme. Everything is driven by CSS custom properties and
+ * plain class names, so you can override any of it or skip this file entirely
+ * and style the `.tl-*` classes yourself.
+ */
+:root {
+  --tl-node-bg: #ffffff;
+  --tl-node-border: #cbd5e1;
+  --tl-node-text: #0f172a;
+  --tl-entry-bg: #1e293b;
+  --tl-entry-text: #f8fafc;
+  --tl-accent: #f59e0b;
+  --tl-count-bg: #e2e8f0;
+  --tl-count-text: #334155;
+  --tl-edge: #94a3b8;
+  --tl-dot: #f59e0b;
+}
+
+.tl-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 170px;
+  height: 56px;
+  padding: 0 12px;
+  border: 1px solid var(--tl-node-border);
+  border-radius: 10px;
+  background: var(--tl-node-bg);
+  color: var(--tl-node-text);
+  font: 13px/1.2 ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.tl-node--entry {
+  background: var(--tl-entry-bg);
+  color: var(--tl-entry-text);
+  border-color: var(--tl-entry-bg);
+}
+
+.tl-node__label {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-node__count {
+  flex: 0 0 auto;
+  min-width: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tl-count-bg);
+  color: var(--tl-count-text);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.tl-node--entry .tl-node__count {
+  background: rgba(248, 250, 252, 0.18);
+  color: var(--tl-entry-text);
+}
+
+.tl-node--pulse {
+  animation: tl-pulse 0.45s ease-out;
+}
+
+@keyframes tl-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--tl-accent);
+    border-color: var(--tl-accent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(245, 158, 11, 0);
+    border-color: var(--tl-node-border);
+  }
+}
+
+.tl-handle {
+  width: 6px;
+  height: 6px;
+  background: var(--tl-edge);
+  border: none;
+}
+
+.tl-edge {
+  stroke: var(--tl-edge);
+  stroke-width: 1.5;
+}
+
+.tl-edge__dot {
+  fill: var(--tl-dot);
+}

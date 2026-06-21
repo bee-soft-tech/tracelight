@@ -1,0 +1,10 @@
+{
+  "name": "tracelight-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Real-time request-flow visualization — JS workspaces",
+  "workspaces": [
+    "tracelight-react",
+    "tracelight-web"
+  ]
+}

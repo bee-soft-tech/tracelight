@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: tracelight-demo-app
+
+# Tracelight is auto-configured; these are the defaults, shown for reference.
+tracelight:
+  enabled: true
+  base-path: /tracelight
+
+logging:
+  level:
+    io.tracelight: INFO
