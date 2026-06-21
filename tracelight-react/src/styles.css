@@ -13,7 +13,7 @@
   --tl-count-bg: #e2e8f0;
   --tl-count-text: #334155;
   --tl-edge: #94a3b8;
-  --tl-dot: #f59e0b;
+  --tl-flash: #22c55e;
 }
 
 .tl-node {
@@ -89,6 +89,9 @@
   stroke-width: 1.5;
 }
 
-.tl-edge__dot {
-  fill: var(--tl-dot);
+.tl-edge__flash {
+  stroke: var(--tl-flash);
+  stroke-width: 3;
+  fill: none;
+  pointer-events: none;
 }

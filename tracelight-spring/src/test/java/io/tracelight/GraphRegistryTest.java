@@ -47,7 +47,7 @@ class GraphRegistryTest {
     @Test
     void recorderTracksThreadLocalSequence() {
         GraphRegistry registry = new GraphRegistry();
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry));
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
 
         TraceContext.start(GraphRegistry.ENTRY_ID);
         try {

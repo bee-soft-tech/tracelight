@@ -123,6 +123,11 @@ public class GraphRegistry {
         return nodes.values();
     }
 
+    /** The node with the given id, or {@code null} if unknown. */
+    public NodeState node(String id) {
+        return nodes.get(id);
+    }
+
     public Collection<EdgeState> edges() {
         return edges.values();
     }

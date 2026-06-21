@@ -9,6 +9,10 @@ spring:
 tracelight:
   enabled: true
   base-path: /tracelight
+  # 0 = one "pulse" event per hit (carries traceId, so the UI can animate one dot per
+  # request flowing along its whole path). Set > 0 to coalesce into aggregated "batch"
+  # events per window (ms) for very high traffic (no per-request dot then).
+  flush-interval-ms: 0
 
 logging:
   level:

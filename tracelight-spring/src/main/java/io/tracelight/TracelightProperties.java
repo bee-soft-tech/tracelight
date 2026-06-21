@@ -12,6 +12,13 @@ public class TracelightProperties {
     /** Base path for Tracelight endpoints. The WebSocket lives at {@code basePath + "/ws"}. */
     private String basePath = "/tracelight";
 
+    /**
+     * How often (ms) to flush aggregated hit events to clients. With a positive value,
+     * hits are coalesced over the window and sent as one {@code batch} event — essential
+     * under heavy traffic. Set to {@code 0} to send one {@code pulse} event per hit.
+     */
+    private long flushIntervalMs = 100;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -26,5 +33,13 @@ public class TracelightProperties {
 
     public void setBasePath(String basePath) {
         this.basePath = basePath;
+    }
+
+    public long getFlushIntervalMs() {
+        return flushIntervalMs;
+    }
+
+    public void setFlushIntervalMs(long flushIntervalMs) {
+        this.flushIntervalMs = flushIntervalMs;
     }
 }

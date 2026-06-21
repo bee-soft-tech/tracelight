@@ -81,6 +81,22 @@ export function useTracelight(url: string): TracelightState {
           listeners.current.forEach((cb) => cb(event));
           break;
         }
+        case 'batch': {
+          event.nodes.forEach((nd) => {
+            const node = nodesRef.current.get(nd.id);
+            if (node) node.count = nd.count;
+          });
+          // One animation per active edge in the window keeps the UI light
+          // regardless of how many hits the batch aggregated.
+          event.edges.forEach((ed) => {
+            if (ed.delta > 0) {
+              listeners.current.forEach((cb) =>
+                cb({ type: 'pulse', traceId: '-', from: ed.from, to: ed.to, count: 0 }),
+              );
+            }
+          });
+          break;
+        }
         case 'reset':
           nodesRef.current.forEach((n) => {
             n.count = 0;

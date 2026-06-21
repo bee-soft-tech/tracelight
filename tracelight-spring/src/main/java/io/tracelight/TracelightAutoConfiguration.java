@@ -27,8 +27,8 @@ public class TracelightAutoConfiguration {
     }
 
     @Bean
-    public TracelightBroadcaster tracelightBroadcaster(GraphRegistry registry) {
-        return new TracelightBroadcaster(registry);
+    public TracelightBroadcaster tracelightBroadcaster(GraphRegistry registry, TracelightProperties properties) {
+        return new TracelightBroadcaster(registry, properties.getFlushIntervalMs());
     }
 
     @Bean

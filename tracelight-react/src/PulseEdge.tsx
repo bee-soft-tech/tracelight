@@ -1,14 +1,20 @@
 import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react';
 
 export interface TLEdgeData {
-  /** Increments on every pulse traversing this edge; retriggers the flying dot. */
-  pulseSeq: number;
+  /** Non-null while the edge is flashing (a request just traversed it); keys the flash. */
+  flashId: number | null;
+  /** Flash fade-out duration, ms. */
+  flashMs?: number;
   [key: string]: unknown;
 }
 
+const DEFAULT_FLASH = 500;
+
 /**
- * Edge that animates a dot from source to target on each pulse. The dot is keyed by
- * `pulseSeq`, so it remounts and replays its `<animateMotion>` once per pulse, then fades.
+ * Purely presentational edge. When a request traverses A→B the parent ({@link TraceGraph})
+ * marks this edge active; we render a coloured overlay over the base edge that fades out,
+ * i.e. the connecting arrow blinks green. No local state ⇒ immune to React Flow remounts,
+ * and only edges a request actually crossed light up.
  */
 export function PulseEdge(props: EdgeProps) {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd } = props;
@@ -20,22 +26,18 @@ export function PulseEdge(props: EdgeProps) {
     sourcePosition,
     targetPosition,
   });
-  const pulseSeq = (props.data as TLEdgeData | undefined)?.pulseSeq ?? 0;
+
+  const data = props.data as TLEdgeData | undefined;
+  const flashId = data?.flashId ?? null;
+  const flashMs = data?.flashMs ?? DEFAULT_FLASH;
 
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd} className="tl-edge" />
-      {pulseSeq > 0 && (
-        <circle key={pulseSeq} className="tl-edge__dot" r={5} opacity={0}>
-          <animateMotion dur="0.6s" path={path} fill="freeze" />
-          <animate
-            attributeName="opacity"
-            dur="0.6s"
-            values="1;1;0"
-            keyTimes="0;0.85;1"
-            fill="remove"
-          />
-        </circle>
+      {flashId !== null && (
+        <path key={flashId} d={path} className="tl-edge__flash" fill="none">
+          <animate attributeName="opacity" from="1" to="0" dur={`${flashMs}ms`} fill="freeze" />
+        </path>
       )}
     </>
   );

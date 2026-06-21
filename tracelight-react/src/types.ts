@@ -33,8 +33,20 @@ export interface PulseEvent {
   count: number;
 }
 
+/** Aggregated hits over one server-side flush window (heavy-traffic mode). */
+export interface BatchEvent {
+  type: 'batch';
+  nodes: { id: string; count: number; delta: number }[];
+  edges: { id: string; from: string; to: string; delta: number }[];
+}
+
 export interface ResetEvent {
   type: 'reset';
 }
 
-export type TracelightEvent = SnapshotEvent | TopologyEvent | PulseEvent | ResetEvent;
+export type TracelightEvent =
+  | SnapshotEvent
+  | TopologyEvent
+  | PulseEvent
+  | BatchEvent
+  | ResetEvent;

@@ -21,3 +21,9 @@ Options:
 | `--url` | `http://localhost:8080` | base URL of the demo app |
 | `--rps` | `10` | target requests per second |
 | `--duration` | `0` | seconds to run (`0` = until Ctrl-C) |
+| `--scenario` | `mixed` | `mixed` (random over everything), `order`, `search`, or `single` (always the same `/order US` — exactly one path, handy for watching the dots) |
+
+```bash
+# Watch a single, deterministic path light up:
+python -m tracelight_load --rps 1 --scenario single
+```

@@ -28,6 +28,8 @@ export interface TraceGraphProps {
   graph: TracelightState;
   nodeWidth?: number;
   nodeHeight?: number;
+  /** Edge flash fade-out duration, ms. */
+  flashMs?: number;
   /** Replace the body of a node (handles and blink are still provided). */
   renderNode?: (node: TLNode, active: boolean) => ReactNode;
   className?: string;
@@ -39,16 +41,21 @@ export interface TraceGraphProps {
 
 const DEFAULT_NODE_TYPES: NodeTypes = { tl: DefaultNode };
 const DEFAULT_EDGE_TYPES: EdgeTypes = { tl: PulseEdge };
+const BLINK_MS = 450;
 
 /**
  * Renders the live trace graph with React Flow + elkjs (left→right layout).
- * Re-layout happens only when the topology changes; pulses drive node blinks and
- * flying dots without recomputing positions.
+ *
+ * When a request crosses A→B, the destination node blinks and the connecting edge flashes.
+ * All transient state lives here (the single source of truth): which edges/nodes are
+ * currently active. Edges/nodes are stateless views of that map, so only the edges a
+ * request actually traversed light up, regardless of how React Flow re-renders.
  */
 export function TraceGraph({
   graph,
   nodeWidth = 170,
   nodeHeight = 56,
+  flashMs = 500,
   renderNode,
   className,
   style,
@@ -59,12 +66,24 @@ export function TraceGraph({
   const { nodes, edges, onPulse } = graph;
 
   const [positions, setPositions] = useState<Map<string, NodePosition>>(new Map());
-  const nodePulse = useRef<Map<string, number>>(new Map());
-  const edgePulse = useRef<Map<string, number>>(new Map());
-  const [animTick, bumpAnim] = useReducer((x: number) => x + 1, 0);
-  const animScheduled = useRef(false);
 
-  // Recompute layout only when the set of node/edge ids changes.
+  const activeEdges = useRef<Map<string, number>>(new Map()); // edgeId -> flashId
+  const activeNodes = useRef<Map<string, number>>(new Map()); // nodeId -> blinkId
+  const edgeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const nodeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const seq = useRef(0);
+  const [animTick, bumpTick] = useReducer((x: number) => x + 1, 0);
+  const tickScheduled = useRef(false);
+
+  const scheduleTick = () => {
+    if (tickScheduled.current) return;
+    tickScheduled.current = true;
+    requestAnimationFrame(() => {
+      tickScheduled.current = false;
+      bumpTick();
+    });
+  };
+
   const structuralKey = useMemo(
     () => nodes.map((n) => n.id).join('|') + '##' + edges.map((e) => e.id).join('|'),
     [nodes, edges],
@@ -81,22 +100,49 @@ export function TraceGraph({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [structuralKey, nodeWidth, nodeHeight]);
 
-  // Route pulses to per-node / per-edge counters that retrigger animations,
-  // batched to one re-render per frame.
   useEffect(() => {
-    return onPulse((pulse) => {
-      nodePulse.current.set(pulse.to, (nodePulse.current.get(pulse.to) ?? 0) + 1);
+    const unsubscribe = onPulse((pulse) => {
+      // Flash the traversed edge A→B (restart its fade on every hit).
       const edgeId = `${pulse.from}->${pulse.to}`;
-      edgePulse.current.set(edgeId, (edgePulse.current.get(edgeId) ?? 0) + 1);
-      if (!animScheduled.current) {
-        animScheduled.current = true;
-        requestAnimationFrame(() => {
-          animScheduled.current = false;
-          bumpAnim();
-        });
-      }
+      activeEdges.current.set(edgeId, ++seq.current);
+      const prevEdgeTimer = edgeTimers.current.get(edgeId);
+      if (prevEdgeTimer) clearTimeout(prevEdgeTimer);
+      edgeTimers.current.set(
+        edgeId,
+        setTimeout(() => {
+          activeEdges.current.delete(edgeId);
+          edgeTimers.current.delete(edgeId);
+          scheduleTick();
+        }, flashMs),
+      );
+
+      // Blink the destination node.
+      const nodeId = pulse.to;
+      activeNodes.current.set(nodeId, ++seq.current);
+      const prevNodeTimer = nodeTimers.current.get(nodeId);
+      if (prevNodeTimer) clearTimeout(prevNodeTimer);
+      nodeTimers.current.set(
+        nodeId,
+        setTimeout(() => {
+          activeNodes.current.delete(nodeId);
+          nodeTimers.current.delete(nodeId);
+          scheduleTick();
+        }, BLINK_MS),
+      );
+
+      scheduleTick();
     });
-  }, [onPulse]);
+
+    return () => {
+      unsubscribe();
+      edgeTimers.current.forEach(clearTimeout);
+      nodeTimers.current.forEach(clearTimeout);
+      edgeTimers.current.clear();
+      nodeTimers.current.clear();
+      activeEdges.current.clear();
+      activeNodes.current.clear();
+    };
+  }, [onPulse, flashMs]);
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -104,9 +150,8 @@ export function TraceGraph({
         id: n.id,
         type: 'tl',
         position: positions.get(n.id) ?? { x: 0, y: 0 },
-        data: { node: n, pulseSeq: nodePulse.current.get(n.id) ?? 0, renderNode },
+        data: { node: n, active: activeNodes.current.has(n.id), renderNode },
       })),
-    // animTick included so counts/blinks refresh each frame
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [nodes, positions, animTick, renderNode],
   );
@@ -118,10 +163,10 @@ export function TraceGraph({
         source: e.from,
         target: e.to,
         type: 'tl',
-        data: { pulseSeq: edgePulse.current.get(e.id) ?? 0 },
+        data: { flashId: activeEdges.current.get(e.id) ?? null, flashMs },
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [edges, animTick],
+    [edges, animTick, flashMs],
   );
 
   return (

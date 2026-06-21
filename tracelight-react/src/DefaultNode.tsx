@@ -1,38 +1,29 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import type { TLNode } from './types';
 
 export interface TLNodeData {
   node: TLNode;
-  /** Increments on every pulse hitting this node; used to retrigger the blink. */
-  pulseSeq: number;
+  /** True for a short window right after a request hit this node (drives the blink). */
+  active: boolean;
   renderNode?: (node: TLNode, active: boolean) => ReactNode;
   [key: string]: unknown;
 }
 
 /**
- * Default headless node: a labelled box with a live counter and a blink on each pulse.
- * Styling lives entirely in CSS classes (`tl-node`, `tl-node--entry`, ...), so consumers
- * can restyle freely or pass `renderNode` to replace the body completely.
+ * Default headless node: a labelled box with a live counter that blinks while `active`.
+ * Stateless — the parent decides when it is active — so it cannot blink spuriously on
+ * re-render. Styling lives in CSS classes (`tl-node`, `tl-node--entry`, `tl-node--pulse`),
+ * or pass `renderNode` to replace the body entirely.
  */
 export function DefaultNode({ data }: NodeProps) {
-  const { node, pulseSeq, renderNode } = data as TLNodeData;
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !pulseSeq) return;
-    // restart the CSS animation
-    el.classList.remove('tl-node--pulse');
-    void el.offsetWidth;
-    el.classList.add('tl-node--pulse');
-  }, [pulseSeq]);
+  const { node, active, renderNode } = data as TLNodeData;
 
   return (
-    <div ref={ref} className={`tl-node tl-node--${node.kind}`}>
+    <div className={`tl-node tl-node--${node.kind}${active ? ' tl-node--pulse' : ''}`}>
       <Handle type="target" position={Position.Left} className="tl-handle" />
       {renderNode ? (
-        renderNode(node, pulseSeq > 0)
+        renderNode(node, active)
       ) : (
         <>
           <span className="tl-node__label">{node.label}</span>

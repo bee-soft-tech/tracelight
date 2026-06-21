@@ -11,6 +11,7 @@ export type {
   TLNode,
   TLEdge,
   PulseEvent,
+  BatchEvent,
   SnapshotEvent,
   TopologyEvent,
   ResetEvent,
