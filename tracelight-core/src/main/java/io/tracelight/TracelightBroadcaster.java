@@ -3,10 +3,6 @@ package io.tracelight;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-
-import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -47,7 +43,7 @@ public class TracelightBroadcaster implements AutoCloseable {
     private final GraphRegistry registry;
     private final long flushIntervalMs;
     private final ObjectMapper mapper = new ObjectMapper();
-    private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
+    private final MessageSink sink;
 
     private final ThreadPoolExecutor pulseExecutor;
     private final ScheduledExecutorService scheduler;
@@ -55,9 +51,10 @@ public class TracelightBroadcaster implements AutoCloseable {
     private final Map<String, LongAdder> nodeDeltas = new ConcurrentHashMap<>();
     private final Map<String, EdgeAcc> edgeDeltas = new ConcurrentHashMap<>();
 
-    public TracelightBroadcaster(GraphRegistry registry, long flushIntervalMs) {
+    public TracelightBroadcaster(GraphRegistry registry, long flushIntervalMs, MessageSink sink) {
         this.registry = registry;
         this.flushIntervalMs = flushIntervalMs;
+        this.sink = sink;
 
         ThreadFactory daemon = r -> {
             Thread t = new Thread(r, "tracelight-ws");
@@ -76,15 +73,6 @@ public class TracelightBroadcaster implements AutoCloseable {
         } else {
             this.scheduler = null;
         }
-    }
-
-    public void register(WebSocketSession session) {
-        sessions.add(session);
-        sendTo(session, snapshotJson());
-    }
-
-    public void remove(WebSocketSession session) {
-        sessions.remove(session);
     }
 
     /** Emits topology immediately for anything new; then either accumulates or pulses the hit. */
@@ -188,7 +176,7 @@ public class TracelightBroadcaster implements AutoCloseable {
         pulseExecutor.shutdownNow();
     }
 
-    private String snapshotJson() {
+    public String snapshotJson() {
         ObjectNode snap = mapper.createObjectNode();
         snap.put("type", "snapshot");
         ArrayNode nodes = snap.putArray("nodes");
@@ -239,23 +227,6 @@ public class TracelightBroadcaster implements AutoCloseable {
     }
 
     private void broadcast(String json) {
-        for (WebSocketSession session : sessions) {
-            sendTo(session, json);
-        }
-    }
-
-    private void sendTo(WebSocketSession session, String json) {
-        if (!session.isOpen()) {
-            sessions.remove(session);
-            return;
-        }
-        try {
-            // WebSocketSession is not safe for concurrent sends.
-            synchronized (session) {
-                session.sendMessage(new TextMessage(json));
-            }
-        } catch (IOException | IllegalStateException ex) {
-            sessions.remove(session);
-        }
+        sink.broadcast(json);
     }
 }

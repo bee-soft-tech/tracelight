@@ -3,24 +3,19 @@ package io.tracelight;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class TracelightBroadcasterTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private static final MessageSink NOOP = json -> { };
 
     @Test
     void snapshotIncludesEdgeTimingWhenSampled() throws Exception {
         GraphRegistry registry = new GraphRegistry();
         registry.recordHit("a", GraphRegistry.ENTRY_ID, 10_000_000L); // 10 ms
-        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0);
+        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0, NOOP);
 
         JsonNode edge = firstEdgeOfSnapshot(broadcaster);
 
@@ -34,7 +29,7 @@ class TracelightBroadcasterTest {
     void snapshotOmitsTimingWhenNoSamples() throws Exception {
         GraphRegistry registry = new GraphRegistry();
         registry.recordHit("a", GraphRegistry.ENTRY_ID); // no timing
-        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0);
+        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0, NOOP);
 
         JsonNode edge = firstEdgeOfSnapshot(broadcaster);
 
@@ -47,9 +42,9 @@ class TracelightBroadcasterTest {
     void snapshotIncludesMessageAndStackForErrorNodes() throws Exception {
         GraphRegistry registry = new GraphRegistry();
         registry.recordError("payment", "IllegalStateException", "boom", java.util.List.of("at A", "at B"));
-        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0);
+        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0, NOOP);
 
-        JsonNode snapshot = snapshotOf(broadcaster);
+        JsonNode snapshot = mapper.readTree(broadcaster.snapshotJson());
         JsonNode errorNode = null;
         for (JsonNode n : snapshot.get("nodes")) {
             if ("error".equals(n.path("kind").asText())) {
@@ -61,24 +56,8 @@ class TracelightBroadcasterTest {
         assertThat(errorNode.get("stack").get(0).asText()).isEqualTo("at A");
     }
 
-    private JsonNode snapshotOf(TracelightBroadcaster broadcaster) throws Exception {
-        WebSocketSession session = mock(WebSocketSession.class);
-        when(session.isOpen()).thenReturn(true);
-        ArgumentCaptor<TextMessage> captor = ArgumentCaptor.forClass(TextMessage.class);
-        broadcaster.register(session);
-        verify(session).sendMessage(captor.capture());
-        return mapper.readTree(captor.getValue().getPayload());
-    }
-
     private JsonNode firstEdgeOfSnapshot(TracelightBroadcaster broadcaster) throws Exception {
-        WebSocketSession session = mock(WebSocketSession.class);
-        when(session.isOpen()).thenReturn(true);
-        ArgumentCaptor<TextMessage> captor = ArgumentCaptor.forClass(TextMessage.class);
-
-        broadcaster.register(session);
-
-        verify(session).sendMessage(captor.capture());
-        JsonNode snapshot = mapper.readTree(captor.getValue().getPayload());
+        JsonNode snapshot = mapper.readTree(broadcaster.snapshotJson());
         return snapshot.get("edges").get(0);
     }
 }

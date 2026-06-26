@@ -18,9 +18,10 @@ public class TracelightWebSocketConfig implements WebSocketConfigurer {
     private final TracelightProperties properties;
     private final TracelightWebSocketHandler handler;
 
-    public TracelightWebSocketConfig(TracelightProperties properties, TracelightBroadcaster broadcaster) {
+    public TracelightWebSocketConfig(
+            TracelightProperties properties, TracelightBroadcaster broadcaster, ServletMessageSink sink) {
         this.properties = properties;
-        this.handler = new TracelightWebSocketHandler(broadcaster);
+        this.handler = new TracelightWebSocketHandler(broadcaster, sink);
     }
 
     @Override

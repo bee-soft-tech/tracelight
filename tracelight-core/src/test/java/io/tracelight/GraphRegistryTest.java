@@ -87,7 +87,7 @@ class GraphRegistryTest {
     @Test
     void recorderAttachesErrorToCurrentNode() {
         GraphRegistry registry = new GraphRegistry();
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0, json -> { }));
 
         TraceContext.start(GraphRegistry.ENTRY_ID);
         try {
@@ -107,7 +107,7 @@ class GraphRegistryTest {
     @Test
     void recorderRecordsSameThrowableOnce() {
         GraphRegistry registry = new GraphRegistry();
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0, json -> { }));
 
         TraceContext.start(GraphRegistry.ENTRY_ID);
         try {
@@ -125,7 +125,7 @@ class GraphRegistryTest {
     @Test
     void recorderTracksThreadLocalSequence() {
         GraphRegistry registry = new GraphRegistry();
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0, json -> { }));
 
         TraceContext.start(GraphRegistry.ENTRY_ID);
         try {
@@ -142,7 +142,7 @@ class GraphRegistryTest {
     @Test
     void recorderTimesEdgesBetweenConsecutiveHits() throws InterruptedException {
         GraphRegistry registry = new GraphRegistry();
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0, json -> { }));
 
         TraceContext.start(GraphRegistry.ENTRY_ID);
         try {
