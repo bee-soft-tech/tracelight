@@ -218,6 +218,11 @@ export function TraceGraph({
         id: n.id,
         type: 'tl',
         position,
+        // Give React Flow explicit dimensions so a node is "initialized" immediately. Without
+        // this it must measure the DOM async; with a content-sized (max-content) node that left
+        // fitView not knowing node sizes → wrong zoom and "node not initialized" warnings.
+        width: position.width,
+        height: nodeHeight,
         data: { node: n, active: blink > 0, blink, flashMs, width: position.width, renderNode },
       };
       cache.set(n.id, fresh);
@@ -264,6 +269,9 @@ export function TraceGraph({
         edgeTypes={DEFAULT_EDGE_TYPES}
         colorMode={colorMode}
         fitView={fitView}
+        // React Flow's default minZoom is 0.5, which can't zoom out far enough to fit a wide
+        // graph — fitView then clips it. Allow zooming out much further so the whole graph fits.
+        minZoom={0.05}
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
       >
