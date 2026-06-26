@@ -1,3 +1,39 @@
+:root {
+  --app-bg: #f1f5f9;
+  --app-text: #0f172a;
+  --bar-bg: #ffffff;
+  --bar-border: #e2e8f0;
+  --ctl-bg: #f8fafc;
+  --ctl-bg-hover: #eef2f7;
+  --ctl-border: #cbd5e1;
+  --muted: #64748b;
+}
+
+/* Dark theme: follow the browser by default, let an explicit data-theme override it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --app-bg: #0b1220;
+    --app-text: #e2e8f0;
+    --bar-bg: #111827;
+    --bar-border: #334155;
+    --ctl-bg: #1e293b;
+    --ctl-bg-hover: #334155;
+    --ctl-border: #475569;
+    --muted: #94a3b8;
+  }
+}
+
+[data-theme='dark'] {
+  --app-bg: #0b1220;
+  --app-text: #e2e8f0;
+  --bar-bg: #111827;
+  --bar-border: #334155;
+  --ctl-bg: #1e293b;
+  --ctl-bg-hover: #334155;
+  --ctl-border: #475569;
+  --muted: #94a3b8;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -11,8 +47,8 @@ body,
 
 body {
   font-family: ui-sans-serif, system-ui, sans-serif;
-  color: #0f172a;
-  background: #f1f5f9;
+  color: var(--app-text);
+  background: var(--app-bg);
 }
 
 .app {
@@ -26,8 +62,8 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bar-bg);
+  border-bottom: 1px solid var(--bar-border);
   flex: 0 0 auto;
 }
 
@@ -62,31 +98,39 @@ body {
   flex: 1 1 auto;
   max-width: 360px;
   padding: 6px 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--ctl-border);
   border-radius: 8px;
+  background: var(--ctl-bg);
+  color: var(--app-text);
   font: 13px ui-monospace, monospace;
 }
 
 .toolbar button {
   padding: 6px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--ctl-border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--ctl-bg);
+  color: var(--app-text);
   cursor: pointer;
   font-size: 13px;
 }
 
 .toolbar button:hover {
-  background: #eef2f7;
+  background: var(--ctl-bg-hover);
+}
+
+.theme-toggle {
+  line-height: 1;
 }
 
 .muted {
   margin-left: auto;
-  color: #64748b;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .canvas {
   flex: 1 1 auto;
   min-height: 0;
+  background: var(--app-bg);
 }

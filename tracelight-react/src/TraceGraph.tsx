@@ -39,6 +39,8 @@ export interface TraceGraphProps {
   fitView?: boolean;
   showControls?: boolean;
   showBackground?: boolean;
+  /** Drives React Flow's built-in chrome (controls, background, attribution). Default 'system'. */
+  colorMode?: 'light' | 'dark' | 'system';
 }
 
 const DEFAULT_NODE_TYPES: NodeTypes = { tl: DefaultNode };
@@ -65,6 +67,7 @@ export function TraceGraph({
   fitView = true,
   showControls = true,
   showBackground = true,
+  colorMode = 'system',
 }: TraceGraphProps) {
   const { nodes, edges, onPulse } = graph;
 
@@ -247,6 +250,7 @@ export function TraceGraph({
         onNodesChange={onNodesChange}
         nodeTypes={DEFAULT_NODE_TYPES}
         edgeTypes={DEFAULT_EDGE_TYPES}
+        colorMode={colorMode}
         fitView={fitView}
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}

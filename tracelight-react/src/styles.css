@@ -17,6 +17,34 @@
   --tl-bullet-idle: #ef4444;
 }
 
+/*
+ * Dark theme. Follows the browser preference automatically, unless the host explicitly sets
+ * data-theme on a parent (e.g. <html data-theme="light|dark">), which always wins.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --tl-node-bg: #1e293b;
+    --tl-node-border: #334155;
+    --tl-node-text: #e2e8f0;
+    --tl-entry-bg: #0b1220;
+    --tl-entry-text: #f8fafc;
+    --tl-count-bg: #334155;
+    --tl-count-text: #e2e8f0;
+    --tl-edge: #64748b;
+  }
+}
+
+[data-theme='dark'] {
+  --tl-node-bg: #1e293b;
+  --tl-node-border: #334155;
+  --tl-node-text: #e2e8f0;
+  --tl-entry-bg: #0b1220;
+  --tl-entry-text: #f8fafc;
+  --tl-count-bg: #334155;
+  --tl-count-text: #e2e8f0;
+  --tl-edge: #64748b;
+}
+
 .tl-node {
   position: relative;
   display: flex;
