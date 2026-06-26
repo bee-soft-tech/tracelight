@@ -10,11 +10,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 
 /**
- * Auto-configuration that wires Tracelight into any servlet Spring Boot app on the
- * classpath. Adding the {@code tracelight-spring} dependency is enough; disable with
- * {@code tracelight.enabled=false}.
+ * Servlet adapter wiring: contributes the {@link ServletMessageSink} consumed by the core
+ * broadcaster, the WebSocket endpoint, the request filter, the AOP aspect, and the reset
+ * controller. The transport-agnostic beans come from {@link TracelightCoreAutoConfiguration}.
  */
-@AutoConfiguration
+@AutoConfiguration(after = TracelightCoreAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnProperty(prefix = "tracelight", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(TracelightProperties.class)
@@ -22,20 +22,8 @@ import org.springframework.core.Ordered;
 public class TracelightAutoConfiguration {
 
     @Bean
-    public GraphRegistry tracelightGraphRegistry() {
-        return new GraphRegistry();
-    }
-
-    @Bean
-    public TracelightBroadcaster tracelightBroadcaster(GraphRegistry registry, TracelightProperties properties, MessageSink sink) {
-        return new TracelightBroadcaster(registry, properties.getFlushIntervalMs(), sink);
-    }
-
-    @Bean
-    public TraceRecorder tracelightRecorder(GraphRegistry registry, TracelightBroadcaster broadcaster) {
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, broadcaster);
-        Tracelight.setRecorder(recorder);
-        return recorder;
+    public ServletMessageSink tracelightMessageSink() {
+        return new ServletMessageSink();
     }
 
     @Bean
