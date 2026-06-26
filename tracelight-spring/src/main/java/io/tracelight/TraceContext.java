@@ -16,10 +16,12 @@ public final class TraceContext {
 
     private final String traceId;
     private String currentNodeId;
+    private long lastHitNanos;
 
     private TraceContext(String traceId, String entryNodeId) {
         this.traceId = traceId;
         this.currentNodeId = entryNodeId;
+        this.lastHitNanos = System.nanoTime();
     }
 
     /** Starts a context for the current thread, rooted at the given entry node. */
@@ -49,5 +51,14 @@ public final class TraceContext {
 
     public void currentNodeId(String id) {
         this.currentNodeId = id;
+    }
+
+    /** {@code System.nanoTime()} of the last hit (or context start), used to time edges. */
+    public long lastHitNanos() {
+        return lastHitNanos;
+    }
+
+    public void lastHitNanos(long nanos) {
+        this.lastHitNanos = nanos;
     }
 }

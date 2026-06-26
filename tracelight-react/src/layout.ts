@@ -1,7 +1,18 @@
-import ELK from 'elkjs/lib/elk.bundled.js';
+import ELK from 'elkjs/lib/elk-api';
+// Run the elk layout engine in a Web Worker so a relayout never blocks the UI thread.
+// (The previous elk.bundled.js ran synchronously on the main thread — 20–70 ms per
+// layout on a ~20-node graph, i.e. multiple dropped frames each time.)
+import ElkWorker from 'elkjs/lib/elk-worker.min.js?worker';
 import type { TLEdge, TLNode } from './types';
 
-const elk = new ELK();
+let elkInstance: InstanceType<typeof ELK> | null = null;
+
+function getElk(): InstanceType<typeof ELK> {
+  if (!elkInstance) {
+    elkInstance = new ELK({ workerFactory: () => new ElkWorker() });
+  }
+  return elkInstance;
+}
 
 export interface LayoutOptions {
   nodeWidth: number;
@@ -46,7 +57,7 @@ export async function layoutGraph(
     })),
   };
 
-  const result = await elk.layout(graph);
+  const result = await getElk().layout(graph);
   result.children?.forEach((child) => {
     positions.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
   });

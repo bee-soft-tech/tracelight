@@ -6,8 +6,20 @@ export interface TLNode {
   count: number;
 }
 
+/** Cumulative latency of crossing an edge, in milliseconds, since the last reset. */
+export interface TLEdgeTiming {
+  /** Fastest observed traversal (ms). */
+  min: number;
+  /** Mean traversal (ms). */
+  avg: number;
+  /** Slowest observed traversal (ms). */
+  max: number;
+  /** Number of timed samples. */
+  samples: number;
+}
+
 /** A directed transition between two points, discovered from traffic. */
-export interface TLEdge {
+export interface TLEdge extends Partial<TLEdgeTiming> {
   id: string;
   from: string;
   to: string;
@@ -25,7 +37,7 @@ export interface TopologyEvent {
   edges?: TLEdge[];
 }
 
-export interface PulseEvent {
+export interface PulseEvent extends Partial<TLEdgeTiming> {
   type: 'pulse';
   traceId: string;
   from: string;
@@ -37,7 +49,7 @@ export interface PulseEvent {
 export interface BatchEvent {
   type: 'batch';
   nodes: { id: string; count: number; delta: number }[];
-  edges: { id: string; from: string; to: string; delta: number }[];
+  edges: ({ id: string; from: string; to: string; delta: number } & Partial<TLEdgeTiming>)[];
 }
 
 export interface ResetEvent {

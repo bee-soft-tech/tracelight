@@ -90,9 +90,9 @@ public class TracelightBroadcaster implements AutoCloseable {
     /** Emits topology immediately for anything new; then either accumulates or pulses the hit. */
     public void onHit(GraphRegistry.HitResult result, String traceId) {
         if (!result.newNodes.isEmpty() || result.newEdge != null) {
-            ObjectNode topo = mapper.createObjectNode();
+            var topo = mapper.createObjectNode();
             topo.put("type", "topology");
-            ArrayNode nodes = topo.putArray("nodes");
+            var nodes = topo.putArray("nodes");
             for (GraphRegistry.NodeState n : result.newNodes) {
                 nodes.add(nodeJson(n));
             }
@@ -113,6 +113,7 @@ public class TracelightBroadcaster implements AutoCloseable {
             pulse.put("from", result.from);
             pulse.put("to", result.to);
             pulse.put("count", result.count);
+            addTiming(pulse, registry.edge(result.from + "->" + result.to));
             String json = pulse.toString();
             pulseExecutor.execute(() -> broadcast(json));
         }
@@ -152,6 +153,7 @@ public class TracelightBroadcaster implements AutoCloseable {
                 o.put("from", acc.from);
                 o.put("to", acc.to);
                 o.put("delta", acc.adder.sum());
+                addTiming(o, registry.edge(id));
             }
 
             broadcast(batch.toString());
@@ -214,7 +216,19 @@ public class TracelightBroadcaster implements AutoCloseable {
         o.put("id", e.id());
         o.put("from", e.from());
         o.put("to", e.to());
+        addTiming(o, e);
         return o;
+    }
+
+    /** Adds {@code min}/{@code avg}/{@code max} (ms) and {@code samples} when the edge has been timed. */
+    private void addTiming(ObjectNode o, GraphRegistry.EdgeState e) {
+        if (e == null || e.samples() == 0) {
+            return;
+        }
+        o.put("min", e.minMs());
+        o.put("avg", e.avgMs());
+        o.put("max", e.maxMs());
+        o.put("samples", e.samples());
     }
 
     private void broadcast(String json) {

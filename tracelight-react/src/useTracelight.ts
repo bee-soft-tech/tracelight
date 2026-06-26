@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PulseEvent, TLEdge, TLNode, TracelightEvent } from './types';
+import type { PulseEvent, TLEdge, TLEdgeTiming, TLNode, TracelightEvent } from './types';
+
+/**
+ * Returns a new edge object with the event's timing merged in, or the same edge when the
+ * event carries no timing. New identity on change lets React Flow re-render just this edge.
+ */
+function withTiming(edge: TLEdge, src: Partial<TLEdgeTiming>): TLEdge {
+  if (src.samples == null) return edge;
+  return { ...edge, min: src.min, avg: src.avg, max: src.max, samples: src.samples };
+}
 
 export interface TracelightState {
   /** Current nodes with live counters. New array reference whenever something changes. */
@@ -77,18 +86,23 @@ export function useTracelight(url: string): TracelightState {
           break;
         case 'pulse': {
           const node = nodesRef.current.get(event.to);
-          if (node) node.count = event.count;
+          if (node) nodesRef.current.set(event.to, { ...node, count: event.count });
+          const eid = `${event.from}->${event.to}`;
+          const edge = edgesRef.current.get(eid);
+          if (edge) edgesRef.current.set(eid, withTiming(edge, event));
           listeners.current.forEach((cb) => cb(event));
           break;
         }
         case 'batch': {
           event.nodes.forEach((nd) => {
             const node = nodesRef.current.get(nd.id);
-            if (node) node.count = nd.count;
+            if (node) nodesRef.current.set(nd.id, { ...node, count: nd.count });
           });
           // One animation per active edge in the window keeps the UI light
           // regardless of how many hits the batch aggregated.
           event.edges.forEach((ed) => {
+            const edge = edgesRef.current.get(ed.id);
+            if (edge) edgesRef.current.set(ed.id, withTiming(edge, ed));
             if (ed.delta > 0) {
               listeners.current.forEach((cb) =>
                 cb({ type: 'pulse', traceId: '-', from: ed.from, to: ed.to, count: 0 }),
@@ -98,8 +112,11 @@ export function useTracelight(url: string): TracelightState {
           break;
         }
         case 'reset':
-          nodesRef.current.forEach((n) => {
-            n.count = 0;
+          nodesRef.current.forEach((n, id) => {
+            nodesRef.current.set(id, { ...n, count: 0 });
+          });
+          edgesRef.current.forEach((e, id) => {
+            edgesRef.current.set(id, { ...e, min: undefined, avg: undefined, max: undefined, samples: undefined });
           });
           break;
       }

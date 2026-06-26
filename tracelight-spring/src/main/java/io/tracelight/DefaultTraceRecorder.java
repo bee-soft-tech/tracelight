@@ -20,14 +20,18 @@ public class DefaultTraceRecorder implements TraceRecorder {
         if (name == null || name.isEmpty()) {
             return;
         }
-        TraceContext ctx = TraceContext.current();
-        String from = (ctx != null) ? ctx.currentNodeId() : null;
-        String traceId = (ctx != null) ? ctx.traceId() : "-";
+        var ctx = TraceContext.current();
+        var from = (ctx != null) ? ctx.currentNodeId() : null;
+        var traceId = (ctx != null) ? ctx.traceId() : "-";
 
-        GraphRegistry.HitResult result = registry.recordHit(name, from);
+        long now = System.nanoTime();
+        long elapsedNanos = (ctx != null) ? now - ctx.lastHitNanos() : -1;
+
+        var result = registry.recordHit(name, from, elapsedNanos);
 
         if (ctx != null) {
             ctx.currentNodeId(name);
+            ctx.lastHitNanos(now);
         }
         broadcaster.onHit(result, traceId);
     }

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAccumulator;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Thread-safe in-memory store of the discovered graph: nodes (points), edges
@@ -36,11 +38,20 @@ public class GraphRegistry {
         public long count() { return count.get(); }
     }
 
-    /** A directed transition {@code from -> to} discovered from traffic. */
+    /**
+     * A directed transition {@code from -> to} discovered from traffic, plus the
+     * cumulative latency of crossing it (min / avg / max over all timed samples
+     * since the last reset).
+     */
     public static final class EdgeState {
         final String id;
         final String from;
         final String to;
+
+        private final LongAccumulator minNanos = new LongAccumulator(Math::min, Long.MAX_VALUE);
+        private final LongAccumulator maxNanos = new LongAccumulator(Math::max, Long.MIN_VALUE);
+        private final LongAdder sumNanos = new LongAdder();
+        private final LongAdder samples = new LongAdder();
 
         EdgeState(String id, String from, String to) {
             this.id = id;
@@ -51,6 +62,34 @@ public class GraphRegistry {
         public String id() { return id; }
         public String from() { return from; }
         public String to() { return to; }
+
+        /** Records one traversal latency. Negative values (no timing) are ignored. */
+        void recordTiming(long nanos) {
+            if (nanos < 0) {
+                return;
+            }
+            minNanos.accumulate(nanos);
+            maxNanos.accumulate(nanos);
+            sumNanos.add(nanos);
+            samples.increment();
+        }
+
+        void resetTiming() {
+            minNanos.reset();
+            maxNanos.reset();
+            sumNanos.reset();
+            samples.reset();
+        }
+
+        /** Number of timed samples since the last reset. */
+        public long samples() { return samples.sum(); }
+
+        public double minMs() { return samples() == 0 ? 0.0 : minNanos.get() / 1_000_000.0; }
+        public double maxMs() { return samples() == 0 ? 0.0 : maxNanos.get() / 1_000_000.0; }
+        public double avgMs() {
+            long n = samples();
+            return n == 0 ? 0.0 : sumNanos.sum() / (double) n / 1_000_000.0;
+        }
     }
 
     /** Outcome of a single {@code hit}: the resolved edge, the new counter, and anything newly created. */
@@ -87,13 +126,19 @@ public class GraphRegistry {
         return created[0] ? node : null;
     }
 
+    /** Equivalent to {@link #recordHit(String, String, long)} without timing. */
+    public HitResult recordHit(String name, String fromOrNull) {
+        return recordHit(name, fromOrNull, -1);
+    }
+
     /**
      * Records a hit on {@code name}, coming from {@code fromOrNull} (or the generic
      * {@link #ENTRY_ID} when null). Creates the target node and the edge on first sight.
+     * When {@code elapsedNanos >= 0} it is recorded as the latency of crossing the edge.
      */
-    public HitResult recordHit(String name, String fromOrNull) {
-        List<NodeState> newNodes = new ArrayList<>(2);
-        String from = (fromOrNull != null && !fromOrNull.isEmpty()) ? fromOrNull : ENTRY_ID;
+    public HitResult recordHit(String name, String fromOrNull, long elapsedNanos) {
+        var newNodes = new ArrayList<NodeState>(2);
+        var from = (fromOrNull != null && !fromOrNull.isEmpty()) ? fromOrNull : ENTRY_ID;
 
         nodes.computeIfAbsent(from, k -> {
             NodeState n = new NodeState(k, k, ENTRY_ID.equals(k) ? "entry" : "point");
@@ -101,20 +146,21 @@ public class GraphRegistry {
             return n;
         });
 
-        NodeState target = nodes.computeIfAbsent(name, k -> {
+        var target = nodes.computeIfAbsent(name, k -> {
             NodeState n = new NodeState(k, k, "point");
             newNodes.add(n);
             return n;
         });
         long count = target.count.incrementAndGet();
 
-        String edgeId = from + "->" + name;
+        var edgeId = from + "->" + name;
         EdgeState[] newEdge = {null};
-        edges.computeIfAbsent(edgeId, k -> {
-            EdgeState e = new EdgeState(k, from, name);
+        var edge = edges.computeIfAbsent(edgeId, k -> {
+            var e = new EdgeState(k, from, name);
             newEdge[0] = e;
             return e;
         });
+        edge.recordTiming(elapsedNanos);
 
         return new HitResult(from, name, count, newNodes, newEdge[0]);
     }
@@ -132,10 +178,18 @@ public class GraphRegistry {
         return edges.values();
     }
 
-    /** Zeroes all counters; keeps the discovered topology. */
+    /** The edge with the given id, or {@code null} if unknown. */
+    public EdgeState edge(String id) {
+        return edges.get(id);
+    }
+
+    /** Zeroes all node counters and edge timing; keeps the discovered topology. */
     public void resetCounters() {
         for (NodeState n : nodes.values()) {
             n.count.set(0);
+        }
+        for (EdgeState e : edges.values()) {
+            e.resetTiming();
         }
     }
 }

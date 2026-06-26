@@ -6,9 +6,11 @@ import {
   type EdgeTypes,
   type Node,
   type NodeTypes,
+  type OnNodesChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -17,10 +19,10 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { DefaultNode } from './DefaultNode';
-import { PulseEdge } from './PulseEdge';
+import { DefaultNode, type TLNodeData } from './DefaultNode';
+import { PulseEdge, type TLEdgeData } from './PulseEdge';
 import { layoutGraph, type NodePosition } from './layout';
-import type { TLNode } from './types';
+import type { TLEdge, TLNode } from './types';
 import type { TracelightState } from './useTracelight';
 
 export interface TraceGraphProps {
@@ -41,7 +43,8 @@ export interface TraceGraphProps {
 
 const DEFAULT_NODE_TYPES: NodeTypes = { tl: DefaultNode };
 const DEFAULT_EDGE_TYPES: EdgeTypes = { tl: PulseEdge };
-const BLINK_MS = 450;
+const LAYOUT_DEBOUNCE_MS = 250;
+const ZERO: NodePosition = { x: 0, y: 0 };
 
 /**
  * Renders the live trace graph with React Flow + elkjs (left→right layout).
@@ -66,6 +69,12 @@ export function TraceGraph({
   const { nodes, edges, onPulse } = graph;
 
   const [positions, setPositions] = useState<Map<string, NodePosition>>(new Map());
+  // Mirrors of the latest props/state so the debounced layout effect can read them
+  // without listing them as dependencies (which would re-trigger it on every change).
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
+  const latest = useRef({ nodes, edges, nodeWidth, nodeHeight });
+  latest.current = { nodes, edges, nodeWidth, nodeHeight };
 
   const activeEdges = useRef<Map<string, number>>(new Map()); // edgeId -> flashId
   const activeNodes = useRef<Map<string, number>>(new Map()); // nodeId -> blinkId
@@ -74,6 +83,12 @@ export function TraceGraph({
   const seq = useRef(0);
   const [animTick, bumpTick] = useReducer((x: number) => x + 1, 0);
   const tickScheduled = useRef(false);
+
+  // Per-element object caches. We rebuild the arrays each animation frame, but reuse the
+  // exact same Node/Edge object when nothing about that element changed — React Flow then
+  // skips re-rendering it, so only the handful of blinking/updating elements actually paint.
+  const rfNodeCache = useRef<Map<string, Node>>(new Map());
+  const rfEdgeCache = useRef<Map<string, Edge>>(new Map());
 
   const scheduleTick = () => {
     if (tickScheduled.current) return;
@@ -84,21 +99,55 @@ export function TraceGraph({
     });
   };
 
-  const structuralKey = useMemo(
-    () => nodes.map((n) => n.id).join('|') + '##' + edges.map((e) => e.id).join('|'),
-    [nodes, edges],
-  );
+  // Persist manual drags into the position map. The layout effect only ever places
+  // nodes that don't yet have a position, so a dragged node is never moved back.
+  const onNodesChange: OnNodesChange = useCallback((changes) => {
+    let moved = false;
+    const moves = new Map<string, NodePosition>();
+    for (const ch of changes) {
+      if (ch.type === 'position' && ch.position) {
+        moves.set(ch.id, ch.position);
+        moved = true;
+      }
+    }
+    if (!moved) return;
+    setPositions((prev) => {
+      const next = new Map(prev);
+      moves.forEach((pos, id) => next.set(id, pos));
+      return next;
+    });
+  }, []);
+
+  // Re-layout only when the *set of nodes* changes (a new node needs placing) — not on
+  // every new edge. We keep every existing position (auto-laid or hand-dragged) and adopt
+  // elk coordinates only for nodes that don't have one yet, so the graph never teleports.
+  // Debounced so a burst of discovery collapses into a single layout pass.
+  const nodeKey = useMemo(() => nodes.map((n) => n.id).join('|'), [nodes]);
 
   useEffect(() => {
+    if (latest.current.nodes.every((n) => positionsRef.current.has(n.id))) return;
     let cancelled = false;
-    layoutGraph(nodes, edges, { nodeWidth, nodeHeight }).then((pos) => {
-      if (!cancelled) setPositions(pos);
-    });
+    const timer = setTimeout(() => {
+      const { nodes: ns, edges: es, nodeWidth: w, nodeHeight: h } = latest.current;
+      layoutGraph(ns, es, { nodeWidth: w, nodeHeight: h }).then((pos) => {
+        if (cancelled) return;
+        setPositions((prev) => {
+          let next = prev;
+          pos.forEach((p, id) => {
+            if (!next.has(id)) {
+              if (next === prev) next = new Map(prev);
+              next.set(id, p);
+            }
+          });
+          return next;
+        });
+      });
+    }, LAYOUT_DEBOUNCE_MS);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structuralKey, nodeWidth, nodeHeight]);
+  }, [nodeKey]);
 
   useEffect(() => {
     const unsubscribe = onPulse((pulse) => {
@@ -127,7 +176,7 @@ export function TraceGraph({
           activeNodes.current.delete(nodeId);
           nodeTimers.current.delete(nodeId);
           scheduleTick();
-        }, BLINK_MS),
+        }, flashMs),
       );
 
       scheduleTick();
@@ -144,36 +193,58 @@ export function TraceGraph({
     };
   }, [onPulse, flashMs]);
 
-  const rfNodes: Node[] = useMemo(
-    () =>
-      nodes.map((n) => ({
+  const rfNodes: Node[] = useMemo(() => {
+    const cache = rfNodeCache.current;
+    return nodes.map((n) => {
+      const position = positions.get(n.id) ?? ZERO;
+      const blink = activeNodes.current.get(n.id) ?? 0; // monotonic seq, 0 when idle
+      const cached = cache.get(n.id);
+      const d = cached?.data as TLNodeData | undefined;
+      // Reuse identity unless the node data, its latest hit, or its position changed.
+      if (cached && d && d.node === n && d.blink === blink && d.flashMs === flashMs && d.renderNode === renderNode && cached.position === position) {
+        return cached;
+      }
+      const fresh: Node = {
         id: n.id,
         type: 'tl',
-        position: positions.get(n.id) ?? { x: 0, y: 0 },
-        data: { node: n, active: activeNodes.current.has(n.id), renderNode },
-      })),
+        position,
+        data: { node: n, active: blink > 0, blink, flashMs, renderNode },
+      };
+      cache.set(n.id, fresh);
+      return fresh;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nodes, positions, animTick, renderNode],
-  );
+  }, [nodes, positions, animTick, renderNode, flashMs]);
 
-  const rfEdges: Edge[] = useMemo(
-    () =>
-      edges.map((e) => ({
+  const rfEdges: Edge[] = useMemo(() => {
+    const cache = rfEdgeCache.current;
+    return edges.map((e) => {
+      const flashId = activeEdges.current.get(e.id) ?? null;
+      const cached = cache.get(e.id);
+      const d = cached?.data as (TLEdgeData & { edge?: TLEdge }) | undefined;
+      // Reuse identity unless the flash restarted or the edge (timing) changed.
+      if (cached && d && d.edge === e && d.flashId === flashId && d.flashMs === flashMs) {
+        return cached;
+      }
+      const fresh: Edge = {
         id: e.id,
         source: e.from,
         target: e.to,
         type: 'tl',
-        data: { flashId: activeEdges.current.get(e.id) ?? null, flashMs },
-      })),
+        data: { edge: e, flashId, flashMs, min: e.min, avg: e.avg, max: e.max, samples: e.samples },
+      };
+      cache.set(e.id, fresh);
+      return fresh;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [edges, animTick, flashMs],
-  );
+  }, [edges, animTick, flashMs]);
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', ...style }}>
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
+        onNodesChange={onNodesChange}
         nodeTypes={DEFAULT_NODE_TYPES}
         edgeTypes={DEFAULT_EDGE_TYPES}
         fitView={fitView}

@@ -35,8 +35,8 @@ public class TraceFilter extends OncePerRequestFilter {
             return;
         }
 
-        String entryId = request.getMethod() + " " + uri;
-        GraphRegistry.NodeState created = registry.ensureEntry(entryId, entryId);
+        var entryId = request.getMethod() + " " + uri;
+        var created = registry.ensureEntry(entryId, entryId);
         if (created != null) {
             broadcaster.onTopologyNode(created);
         }

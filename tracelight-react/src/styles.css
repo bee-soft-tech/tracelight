@@ -14,9 +14,11 @@
   --tl-count-text: #334155;
   --tl-edge: #94a3b8;
   --tl-flash: #22c55e;
+  --tl-bullet-idle: #ef4444;
 }
 
 .tl-node {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -62,18 +64,38 @@
   color: var(--tl-entry-text);
 }
 
-.tl-node--pulse {
-  animation: tl-pulse 0.45s ease-out;
+/*
+ * Status bullet: a small LED on each node. Idle is red; every traversal mounts a green
+ * overlay (re-keyed per hit) that fades via opacity — GPU-composited and cheap, and because
+ * it replays on each hit it reads as steady green under heavy traffic (like the edge flash).
+ */
+.tl-node__bullet {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tl-bullet-idle);
+  overflow: hidden;
 }
 
-@keyframes tl-pulse {
-  0% {
-    box-shadow: 0 0 0 0 var(--tl-accent);
-    border-color: var(--tl-accent);
+.tl-node__bullet-hit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tl-flash);
+  /* Duration is overridden inline to match the edge flash (flashMs); linear, like the
+     edge's SVG <animate>, so both fade identically. */
+  animation: tl-bullet 500ms linear forwards;
+}
+
+@keyframes tl-bullet {
+  from {
+    opacity: 1;
   }
-  100% {
-    box-shadow: 0 0 0 14px rgba(245, 158, 11, 0);
-    border-color: var(--tl-node-border);
+  to {
+    opacity: 0;
   }
 }
 
@@ -94,4 +116,15 @@
   stroke-width: 3;
   fill: none;
   pointer-events: none;
+}
+
+.tl-edge__timing {
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--tl-count-text);
+  background: var(--tl-count-bg);
 }

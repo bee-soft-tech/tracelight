@@ -61,6 +61,80 @@ class GraphRegistryTest {
         assertThat(counts(registry)).containsEntry("a", 1L).containsEntry("b", 1L);
     }
 
+    @Test
+    void recorderTimesEdgesBetweenConsecutiveHits() throws InterruptedException {
+        GraphRegistry registry = new GraphRegistry();
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+
+        TraceContext.start(GraphRegistry.ENTRY_ID);
+        try {
+            recorder.hit("a");
+            Thread.sleep(5);
+            recorder.hit("b");
+        } finally {
+            TraceContext.clear();
+        }
+
+        assertThat(registry.edge("ENTRY->a").samples()).isEqualTo(1);
+        GraphRegistry.EdgeState ab = registry.edge("a->b");
+        assertThat(ab.samples()).isEqualTo(1);
+        assertThat(ab.avgMs()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void edgeAggregatesMinAvgMaxTiming() {
+        GraphRegistry registry = new GraphRegistry();
+
+        registry.recordHit("a", GraphRegistry.ENTRY_ID, ms(10));
+        registry.recordHit("a", GraphRegistry.ENTRY_ID, ms(30));
+        registry.recordHit("a", GraphRegistry.ENTRY_ID, ms(20));
+
+        GraphRegistry.EdgeState edge = registry.edge("ENTRY->a");
+        assertThat(edge.samples()).isEqualTo(3);
+        assertThat(edge.minMs()).isEqualTo(10.0);
+        assertThat(edge.maxMs()).isEqualTo(30.0);
+        assertThat(edge.avgMs()).isEqualTo(20.0);
+    }
+
+    @Test
+    void negativeElapsedIsNotRecordedAsTiming() {
+        GraphRegistry registry = new GraphRegistry();
+
+        registry.recordHit("a", null, -1);
+
+        GraphRegistry.EdgeState edge = registry.edge("ENTRY->a");
+        assertThat(edge.samples()).isEqualTo(0);
+        assertThat(edge.avgMs()).isEqualTo(0.0);
+    }
+
+    @Test
+    void resetClearsEdgeTiming() {
+        GraphRegistry registry = new GraphRegistry();
+
+        registry.recordHit("a", null, ms(10));
+        registry.resetCounters();
+
+        GraphRegistry.EdgeState edge = registry.edge("ENTRY->a");
+        assertThat(edge.samples()).isEqualTo(0);
+        assertThat(edge.minMs()).isEqualTo(0.0);
+        assertThat(edge.maxMs()).isEqualTo(0.0);
+        assertThat(edge.avgMs()).isEqualTo(0.0);
+    }
+
+    /** The two-arg overload (no timing) leaves the edge without samples. */
+    @Test
+    void twoArgRecordHitRecordsNoTiming() {
+        GraphRegistry registry = new GraphRegistry();
+
+        registry.recordHit("a", null);
+
+        assertThat(registry.edge("ENTRY->a").samples()).isEqualTo(0);
+    }
+
+    private static long ms(long millis) {
+        return millis * 1_000_000L;
+    }
+
     private static java.util.Set<String> edgeIds(GraphRegistry registry) {
         return registry.edges().stream().map(GraphRegistry.EdgeState::id).collect(Collectors.toSet());
     }
