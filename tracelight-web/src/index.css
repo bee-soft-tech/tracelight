@@ -119,6 +119,40 @@ body {
   background: var(--ctl-bg-hover);
 }
 
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--ctl-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seg .seg__btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 0;
+  background: var(--ctl-bg);
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.seg .seg__btn + .seg__btn {
+  border-left: 1px solid var(--ctl-border);
+}
+
+.seg .seg__btn--on {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.icon-btn {
+  line-height: 1;
+}
+
+.icon-btn--off {
+  opacity: 0.4;
+}
+
 .theme-toggle {
   line-height: 1;
 }

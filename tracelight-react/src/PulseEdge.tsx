@@ -10,6 +10,8 @@ export interface TLEdgeData {
   avg?: number;
   max?: number;
   samples?: number;
+  /** When false, the timing label is hidden even if the edge has samples. Default shown. */
+  showTimings?: boolean;
   [key: string]: unknown;
 }
 
@@ -41,6 +43,7 @@ export function PulseEdge(props: EdgeProps) {
   const flashId = data?.flashId ?? null;
   const flashMs = data?.flashMs ?? DEFAULT_FLASH;
   const showTiming =
+    data?.showTimings !== false &&
     data?.samples != null && data.samples > 0 &&
     data.min != null && data.avg != null && data.max != null;
 

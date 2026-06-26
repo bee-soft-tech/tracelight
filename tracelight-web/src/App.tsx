@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { TraceGraph, useTracelight } from '@tracelight/react';
+import { TraceGraph, TraceGraphGL, useTracelight } from '@tracelight/react';
 import '@tracelight/react/styles.css';
+
+type Renderer = 'reactflow' | 'webgl';
 
 const DEFAULT_WS = `ws://${window.location.hostname || 'localhost'}:8080/tracelight/ws`;
 
@@ -47,6 +49,8 @@ export default function App() {
   const [activeUrl, setActiveUrl] = useState(DEFAULT_WS);
   const graph = useTracelight(activeUrl);
   const [theme, toggleTheme] = useTheme();
+  const [renderer, setRenderer] = useState<Renderer>('reactflow');
+  const [showTimings, setShowTimings] = useState(true);
 
   return (
     <div className="app">
@@ -71,6 +75,30 @@ export default function App() {
           {graph.nodes.length} nodes · {graph.edges.length} edges
         </span>
 
+        <div className="seg" role="group" aria-label="Renderer">
+          <button
+            className={`seg__btn ${renderer === 'reactflow' ? 'seg__btn--on' : ''}`}
+            onClick={() => setRenderer('reactflow')}
+          >
+            React Flow
+          </button>
+          <button
+            className={`seg__btn ${renderer === 'webgl' ? 'seg__btn--on' : ''}`}
+            onClick={() => setRenderer('webgl')}
+          >
+            WebGL
+          </button>
+        </div>
+
+        <button
+          className={`icon-btn ${showTimings ? '' : 'icon-btn--off'}`}
+          onClick={() => setShowTimings((v) => !v)}
+          title={showTimings ? 'Hide edge times' : 'Show edge times'}
+          aria-label="Toggle edge times"
+        >
+          ⏱
+        </button>
+
         <button
           className="theme-toggle"
           onClick={toggleTheme}
@@ -82,7 +110,18 @@ export default function App() {
       </header>
 
       <main className="canvas">
-        <TraceGraph graph={graph} fitView showControls showBackground colorMode={theme} />
+        {renderer === 'reactflow' ? (
+          <TraceGraph
+            graph={graph}
+            fitView
+            showControls
+            showBackground
+            colorMode={theme}
+            showTimings={showTimings}
+          />
+        ) : (
+          <TraceGraphGL graph={graph} colorMode={theme} showTimings={showTimings} />
+        )}
       </main>
     </div>
   );

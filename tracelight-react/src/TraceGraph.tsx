@@ -41,6 +41,8 @@ export interface TraceGraphProps {
   showBackground?: boolean;
   /** Drives React Flow's built-in chrome (controls, background, attribution). Default 'system'. */
   colorMode?: 'light' | 'dark' | 'system';
+  /** Show the min/avg/max timing labels over edges (default true). */
+  showTimings?: boolean;
 }
 
 const DEFAULT_NODE_TYPES: NodeTypes = { tl: DefaultNode };
@@ -68,6 +70,7 @@ export function TraceGraph({
   showControls = true,
   showBackground = true,
   colorMode = 'system',
+  showTimings = true,
 }: TraceGraphProps) {
   const { nodes, edges, onPulse } = graph;
 
@@ -225,8 +228,9 @@ export function TraceGraph({
       const flashId = activeEdges.current.get(e.id) ?? null;
       const cached = cache.get(e.id);
       const d = cached?.data as (TLEdgeData & { edge?: TLEdge }) | undefined;
-      // Reuse identity unless the flash restarted or the edge (timing) changed.
-      if (cached && d && d.edge === e && d.flashId === flashId && d.flashMs === flashMs) {
+      // Reuse identity unless the flash restarted, the edge (timing) changed, or the
+      // timing-label toggle flipped.
+      if (cached && d && d.edge === e && d.flashId === flashId && d.flashMs === flashMs && d.showTimings === showTimings) {
         return cached;
       }
       const fresh: Edge = {
@@ -234,13 +238,13 @@ export function TraceGraph({
         source: e.from,
         target: e.to,
         type: 'tl',
-        data: { edge: e, flashId, flashMs, min: e.min, avg: e.avg, max: e.max, samples: e.samples },
+        data: { edge: e, flashId, flashMs, showTimings, min: e.min, avg: e.avg, max: e.max, samples: e.samples },
       };
       cache.set(e.id, fresh);
       return fresh;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edges, animTick, flashMs]);
+  }, [edges, animTick, flashMs, showTimings]);
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', ...style }}>
