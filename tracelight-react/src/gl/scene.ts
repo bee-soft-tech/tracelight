@@ -87,6 +87,8 @@ interface EdgeView {
 
 interface Dot {
   gfx: Graphics;
+  from: string;
+  to: string;
   start: Point;
   c1: Point;
   c2: Point;
@@ -146,6 +148,8 @@ export class GLScene {
       this.dotsLayer.addChild(gfx);
       return {
         gfx,
+        from: '',
+        to: '',
         start: { x: 0, y: 0 },
         c1: { x: 0, y: 0 },
         c2: { x: 0, y: 0 },
@@ -237,13 +241,18 @@ export class GLScene {
     const a = this.positions.get(from);
     const b = this.positions.get(to);
     if (!a || !b) return;
-    const { start, end } = edgeEndpoints(a, b, this.opts.nodeW, this.opts.nodeH);
-
     const target = this.nodeViews.get(to);
     if (target) target.ledFlash.alpha = 1;
 
+    // While a node is dragged its edges move every frame; a dot keeps its pre-computed
+    // trajectory and would drift off the line, so don't launch dots on the dragged node's edges.
+    if (this.drag?.kind === 'node' && (this.drag.id === from || this.drag.id === to)) return;
+
+    const { start, end } = edgeEndpoints(a, b, this.opts.nodeW, this.opts.nodeH);
     const { c1, c2 } = bezierControls(start, end);
     const dot = this.dotPool.acquire();
+    dot.from = from;
+    dot.to = to;
     dot.start = start;
     dot.c1 = c1;
     dot.c2 = c2;
@@ -416,6 +425,18 @@ export class GLScene {
     if (!pos) return;
     const wp = this.toWorld(e.global);
     this.drag = { kind: 'node', id, offset: { x: wp.x - pos.x, y: wp.y - pos.y } };
+    this.removeDotsForNode(id); // in-flight dots on this node's edges would drift off the line
+  }
+
+  private removeDotsForNode(id: string): void {
+    const stale: Dot[] = [];
+    this.dotPool.forEachActive((d) => {
+      if (d.from === id || d.to === id) stale.push(d);
+    });
+    for (const d of stale) {
+      d.gfx.visible = false;
+      this.dotPool.release(d);
+    }
   }
 
   private readonly onStageDown = (e: FederatedPointerEvent): void => {
