@@ -10,9 +10,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 
 /**
- * Servlet adapter wiring: contributes the {@link ServletMessageSink} consumed by the core
- * broadcaster, the WebSocket endpoint, the request filter, the AOP aspect, and the reset
- * controller. The transport-agnostic beans come from {@link TracelightCoreAutoConfiguration}.
+ * Servlet adapter wiring: the {@link ServletMessageSink}, the core {@link TracelightBroadcaster}
+ * and {@link TraceRecorder} (declared here so they sit alongside the sink they depend on), the
+ * WebSocket endpoint, the request filter, the AOP aspect, and the reset controller. The
+ * transport-agnostic {@link GraphRegistry} comes from {@link TracelightCoreAutoConfiguration}.
  */
 @AutoConfiguration(after = TracelightCoreAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -24,6 +25,19 @@ public class TracelightAutoConfiguration {
     @Bean
     public ServletMessageSink tracelightMessageSink() {
         return new ServletMessageSink();
+    }
+
+    @Bean
+    public TracelightBroadcaster tracelightBroadcaster(
+            GraphRegistry registry, TracelightProperties properties, ServletMessageSink sink) {
+        return new TracelightBroadcaster(registry, properties.getFlushIntervalMs(), sink);
+    }
+
+    @Bean
+    public TraceRecorder tracelightRecorder(GraphRegistry registry, TracelightBroadcaster broadcaster) {
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, broadcaster);
+        Tracelight.setRecorder(recorder);
+        return recorder;
     }
 
     @Bean

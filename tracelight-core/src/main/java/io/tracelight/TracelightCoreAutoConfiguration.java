@@ -6,9 +6,11 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 /**
- * Transport-agnostic Tracelight wiring: the graph registry, the broadcaster (which needs a
- * {@link MessageSink} supplied by a transport adapter), and the recorder. A servlet or webflux
- * adapter contributes the {@link MessageSink} and the request/WebSocket plumbing.
+ * Transport-agnostic Tracelight wiring. Contributes the in-memory graph registry and the
+ * configuration properties. The broadcaster and recorder beans are declared by each transport
+ * adapter (servlet, webflux) alongside the adapter's {@link MessageSink}, so the bean that needs
+ * the transport is wired in the same place that provides it — avoiding cross-module
+ * {@code @ConditionalOnBean} ordering issues and letting core start cleanly on its own.
  */
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "tracelight", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -18,18 +20,5 @@ public class TracelightCoreAutoConfiguration {
     @Bean
     public GraphRegistry tracelightGraphRegistry() {
         return new GraphRegistry();
-    }
-
-    @Bean
-    public TracelightBroadcaster tracelightBroadcaster(
-            GraphRegistry registry, TracelightProperties properties, MessageSink sink) {
-        return new TracelightBroadcaster(registry, properties.getFlushIntervalMs(), sink);
-    }
-
-    @Bean
-    public TraceRecorder tracelightRecorder(GraphRegistry registry, TracelightBroadcaster broadcaster) {
-        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, broadcaster);
-        Tracelight.setRecorder(recorder);
-        return recorder;
     }
 }
