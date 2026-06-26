@@ -1,4 +1,5 @@
 rootProject.name = 'tracelight'
 
+include 'tracelight-core'
 include 'tracelight-spring'
 include 'tracelight-demo-app'

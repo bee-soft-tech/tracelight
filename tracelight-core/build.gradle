@@ -1,0 +1,20 @@
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.3.4"
+    }
+}
+
+dependencies {
+    // Spring-but-not-web: config properties + auto-configuration, plus JSON. No servlet/webflux.
+    api 'org.springframework.boot:spring-boot-autoconfigure'
+    api 'com.fasterxml.jackson.core:jackson-databind'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
