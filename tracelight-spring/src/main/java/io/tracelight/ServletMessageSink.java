@@ -27,6 +27,11 @@ public class ServletMessageSink implements MessageSink {
         }
     }
 
+    /** Sends one frame to a single session under the per-session lock (used for snapshot-on-connect). */
+    public void sendTo(WebSocketSession session, String json) {
+        send(session, json);
+    }
+
     private void send(WebSocketSession session, String json) {
         if (!session.isOpen()) {
             sessions.remove(session);

@@ -77,21 +77,25 @@ sending over servlet `WebSocketSession` (transport-specific). Split along that s
 
 - **`TracelightCoreAutoConfiguration`** (`@ConditionalOnProperty tracelight.enabled`,
   `@EnableConfigurationProperties(TracelightProperties.class)`):
-  - `GraphRegistry`
-  - `TracelightBroadcaster` — `@ConditionalOnBean(MessageSink.class)`
-  - `DefaultTraceRecorder` + `Tracelight.setRecorder(...)`
-  - No aspect, filter, or WebSocket beans.
+  - `GraphRegistry` only.
+  - No broadcaster, recorder, aspect, filter, or WebSocket beans.
 
-- **`TracelightAutoConfiguration`** (servlet, `@ConditionalOnWebApplication(SERVLET)`),
-  imports the core auto-config:
-  - `ServletMessageSink` (the `MessageSink` bean)
-  - `TracelightWebSocketConfig` / handler
-  - `TraceFilter` (FilterRegistrationBean, unchanged)
+- **`TracelightAutoConfiguration`** (servlet, `@ConditionalOnWebApplication(SERVLET)`,
+  `@AutoConfiguration(after = TracelightCoreAutoConfiguration.class)`):
+  - `ServletMessageSink` (the `MessageSink` implementation)
+  - `TracelightBroadcaster` (needs `GraphRegistry` + `ServletMessageSink`)
+  - `DefaultTraceRecorder` + `Tracelight.setRecorder(...)` (needs `GraphRegistry` + broadcaster)
   - `TracePointAspect`
+  - `TraceFilter` (`FilterRegistrationBean`)
   - `TracelightController`
+  - `TracelightWebSocketConfig` / handler (via `@Import`)
 
-Bean wiring order: sink (adapter) → broadcaster (core, needs sink) → recorder (core, needs
-broadcaster) → `Tracelight.setRecorder`.
+  The broadcaster and recorder are declared here (not in core) to avoid a cross-module
+  `@ConditionalOnBean` ordering hazard — the beans that need the transport are wired in the
+  same place that provides it.
+
+Bean wiring order: sink (adapter) → broadcaster (adapter, needs sink + registry) → recorder
+(adapter, needs broadcaster) → `Tracelight.setRecorder`.
 
 ## Aspect stays in the adapter
 

@@ -5,8 +5,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.io.IOException;
-
 /**
  * WebSocket endpoint handler. On connect the client is registered with the {@link ServletMessageSink}
  * and receives a full snapshot; afterwards it receives live events broadcast through the sink.
@@ -23,9 +21,9 @@ public class TracelightWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws IOException {
+    public void afterConnectionEstablished(WebSocketSession session) {
         sink.add(session);
-        session.sendMessage(new TextMessage(broadcaster.snapshotJson()));
+        sink.sendTo(session, broadcaster.snapshotJson());
     }
 
     @Override
