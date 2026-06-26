@@ -10,6 +10,8 @@ dependencyManagement {
 }
 
 dependencies {
+    api project(':tracelight-core')
+
     // Brings spring-web, spring-websocket and the embedded tomcat websocket runtime,
     // so any app that adds this library gets a working /tracelight/ws endpoint.
     api 'org.springframework.boot:spring-boot-starter-websocket'
