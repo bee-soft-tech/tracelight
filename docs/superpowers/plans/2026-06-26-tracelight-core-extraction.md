@@ -104,28 +104,32 @@ Move the classes that do **not** depend on the broadcaster. `DefaultTraceRecorde
 
 **Files:**
 - Move (git mv, path only — content unchanged): `GraphRegistry.java`, `TraceContext.java`, `TraceRecorder.java`, `Tracelight.java`, `TracePoint.java`, `TracelightProperties.java` from `tracelight-spring/src/main/java/io/tracelight/` to `tracelight-core/src/main/java/io/tracelight/`.
-- Move: `tracelight-spring/src/test/java/io/tracelight/GraphRegistryTest.java` → `tracelight-core/src/test/java/io/tracelight/GraphRegistryTest.java`.
 - Modify: `tracelight-spring/build.gradle`.
+
+> Note: `GraphRegistryTest` stays in `tracelight-spring` for now — it constructs
+> `new DefaultTraceRecorder(registry, new TracelightBroadcaster(...))`, and both classes only
+> move to core in Task 3. The test compiles fine in `tracelight-spring` (it depends on core).
+> It moves to core in Task 3, once the recorder and broadcaster are there.
 
 **Interfaces:**
 - Consumes: `:tracelight-core` module (Task 1).
 - Produces (now in core, signatures unchanged): `GraphRegistry`, `GraphRegistry.NodeState`, `GraphRegistry.EdgeState`, `GraphRegistry.HitResult`; `TraceContext` (`start`, `current`, `clear`, `currentNodeId`, `lastHitNanos`, `markErrorIfNew`); `interface TraceRecorder { void hit(String); void error(Throwable); }`; `Tracelight` (`setRecorder`, `hit`, `error`); `@TracePoint`; `TracelightProperties`.
 
-- [ ] **Step 1: Move the six classes and the registry test**
+- [ ] **Step 1: Move the six classes**
 
 ```bash
 cd /home/bozo/claude-projects/tracelight
-mkdir -p tracelight-core/src/main/java/io/tracelight tracelight-core/src/test/java/io/tracelight
+mkdir -p tracelight-core/src/main/java/io/tracelight
 git mv tracelight-spring/src/main/java/io/tracelight/GraphRegistry.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/main/java/io/tracelight/TraceContext.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/main/java/io/tracelight/TraceRecorder.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/main/java/io/tracelight/Tracelight.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/main/java/io/tracelight/TracePoint.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/main/java/io/tracelight/TracelightProperties.java tracelight-core/src/main/java/io/tracelight/
-git mv tracelight-spring/src/test/java/io/tracelight/GraphRegistryTest.java tracelight-core/src/test/java/io/tracelight/
 ```
 
 The package declaration stays `io.tracelight` in every file — no content edits needed.
+`DefaultTraceRecorder`, `TracelightBroadcaster`, and `GraphRegistryTest` stay in `tracelight-spring` (they move in Task 3).
 
 - [ ] **Step 2: Make `tracelight-spring` depend on core**
 
@@ -147,10 +151,10 @@ dependencies {
 }
 ```
 
-- [ ] **Step 3: Build both modules and run the moved test**
+- [ ] **Step 3: Build both modules and run the existing tests**
 
-Run: `./gradlew :tracelight-core:test :tracelight-spring:build`
-Expected: `BUILD SUCCESSFUL`. `GraphRegistryTest` runs under `:tracelight-core` and passes; `DefaultTraceRecorder`/`TracelightBroadcaster` in `tracelight-spring` still compile against the moved classes (same package, now via the core dependency).
+Run: `./gradlew :tracelight-core:build :tracelight-spring:test`
+Expected: `BUILD SUCCESSFUL`. `tracelight-core` compiles the six moved classes (no tests yet). `tracelight-spring` still compiles `DefaultTraceRecorder`/`TracelightBroadcaster` against the moved classes (same package, via the core dependency), and `GraphRegistryTest` + `TracelightBroadcasterTest` still run there and pass.
 
 - [ ] **Step 4: Commit**
 
@@ -169,6 +173,7 @@ Introduce the one transport seam, move `TracelightBroadcaster` + `DefaultTraceRe
 - Create: `tracelight-core/src/main/java/io/tracelight/MessageSink.java`
 - Move + modify: `TracelightBroadcaster.java`, `DefaultTraceRecorder.java` → `tracelight-core/...`
 - Move + modify: `tracelight-spring/.../TracelightBroadcasterTest.java` → `tracelight-core/...`
+- Move: `tracelight-spring/.../GraphRegistryTest.java` → `tracelight-core/...` (now compiles — recorder + broadcaster are in core).
 - Create: `tracelight-spring/src/main/java/io/tracelight/ServletMessageSink.java`
 - Modify: `tracelight-spring/.../TracelightWebSocketHandler.java`
 
@@ -198,6 +203,7 @@ public interface MessageSink {
 git mv tracelight-spring/src/main/java/io/tracelight/TracelightBroadcaster.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/main/java/io/tracelight/DefaultTraceRecorder.java tracelight-core/src/main/java/io/tracelight/
 git mv tracelight-spring/src/test/java/io/tracelight/TracelightBroadcasterTest.java tracelight-core/src/test/java/io/tracelight/
+git mv tracelight-spring/src/test/java/io/tracelight/GraphRegistryTest.java tracelight-core/src/test/java/io/tracelight/
 ```
 
 In `tracelight-core/.../TracelightBroadcaster.java`:
