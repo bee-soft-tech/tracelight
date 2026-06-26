@@ -24,6 +24,9 @@ interface Palette {
   edge: number;
   flash: number;
   ledIdle: number;
+  errorFill: number;
+  errorBorder: number;
+  errorText: number;
 }
 
 const LIGHT: Palette = {
@@ -38,6 +41,9 @@ const LIGHT: Palette = {
   edge: 0x94a3b8,
   flash: 0x22c55e,
   ledIdle: 0xef4444,
+  errorFill: 0xfee2e2,
+  errorBorder: 0xef4444,
+  errorText: 0x991b1b,
 };
 
 const DARK: Palette = {
@@ -52,6 +58,9 @@ const DARK: Palette = {
   edge: 0x64748b,
   flash: 0x22c55e,
   ledIdle: 0xef4444,
+  errorFill: 0x450a0a,
+  errorBorder: 0xef4444,
+  errorText: 0xfecaca,
 };
 
 function resolvePalette(mode: ColorMode): Palette {
@@ -67,6 +76,7 @@ function fmtMs(ms: number): string {
 }
 
 interface NodeView {
+  id: string;
   c: Container;
   rect: Graphics;
   label: Text;
@@ -74,6 +84,15 @@ interface NodeView {
   led: Graphics;
   ledFlash: Graphics;
   isEntry: boolean;
+  isError: boolean;
+  width: number;
+}
+
+/** A laid-out node position with its computed width (nodes are sized to their content). */
+interface NodePos {
+  x: number;
+  y: number;
+  width: number;
 }
 
 interface EdgeView {
@@ -104,6 +123,8 @@ export interface GLSceneOptions {
   colorMode: ColorMode;
   showFps: boolean;
   showTimings: boolean;
+  /** Called with the node id when an error node is clicked (no drag). */
+  onErrorSelect?: (id: string) => void;
 }
 
 /**
@@ -122,13 +143,16 @@ export class GLScene {
 
   private readonly nodeViews = new Map<string, NodeView>();
   private readonly edgeViews = new Map<string, EdgeView>();
-  private readonly positions = new Map<string, Point>();
+  private readonly positions = new Map<string, NodePos>();
   private readonly dotPool: Pool<Dot>;
 
   private palette: Palette;
   private fitted = false;
   private fpsFrame = 0;
-  private drag: { kind: 'pan' } | { kind: 'node'; id: string; offset: Point } | null = null;
+  private drag:
+    | { kind: 'pan' }
+    | { kind: 'node'; id: string; offset: Point; moved: boolean }
+    | null = null;
   private lastGlobal: Point = { x: 0, y: 0 };
 
   private constructor(
@@ -185,28 +209,38 @@ export class GLScene {
   }
 
   /** Reconcile the scene with the current graph: create/position views, refresh counters. */
-  sync(nodes: TLNode[], edges: TLEdge[], positions: Map<string, Point>): void {
-    const { nodeW: w, nodeH: h } = this.opts;
+  sync(nodes: TLNode[], edges: TLEdge[], positions: Map<string, NodePos>): void {
     // Adopt a position only the first time we see it — never clobber an existing one, so a
     // hand-dragged node stays put across re-syncs.
     positions.forEach((p, id) => {
       if (!this.positions.has(id)) this.positions.set(id, p);
     });
 
+    const presentNodes = new Set<string>();
     for (const n of nodes) {
+      presentNodes.add(n.id);
+      const pos = this.positions.get(n.id);
       let v = this.nodeViews.get(n.id);
       if (!v) {
-        v = this.createNodeView(n);
+        v = this.createNodeView(n, pos?.width ?? this.opts.nodeW);
         this.nodeViews.set(n.id, v);
         this.nodesLayer.addChild(v.c);
       }
-      const pos = this.positions.get(n.id);
+      v.c.visible = true;
       if (pos) v.c.position.set(pos.x, pos.y);
+      // The node may have been created with the fallback width before layout computed its real
+      // one (e.g. an error node appearing instantly); adopt the laid-out width when it arrives.
+      if (pos && pos.width !== v.width) {
+        v.width = pos.width;
+        this.paintNodeRect(v.rect, v.width, v.isEntry, v.isError);
+      }
       v.count.text = String(n.count);
-      v.count.x = w - 12 - v.count.width;
+      v.count.x = v.width - 12 - v.count.width;
     }
 
+    const presentEdges = new Set<string>();
     for (const e of edges) {
+      presentEdges.add(e.id);
       let ev = this.edgeViews.get(e.id);
       if (!ev) {
         const line = new Graphics();
@@ -226,8 +260,21 @@ export class GLScene {
         ev = { line, labelC, labelBg, labelText, from: e.from, to: e.to };
         this.edgeViews.set(e.id, ev);
       }
+      ev.line.visible = true;
       this.drawEdge(ev);
       this.updateEdgeLabel(ev, e);
+    }
+
+    // Hide views whose node/edge dropped out of the graph (e.g. an error node reset to 0).
+    // Views are kept (cheap to reuse) and simply toggled invisible until they reappear.
+    for (const [id, v] of this.nodeViews) {
+      if (!presentNodes.has(id)) v.c.visible = false;
+    }
+    for (const [id, ev] of this.edgeViews) {
+      if (!presentEdges.has(id)) {
+        ev.line.visible = false;
+        ev.labelC.visible = false;
+      }
     }
 
     if (!this.fitted && this.positions.size > 0) {
@@ -248,7 +295,7 @@ export class GLScene {
     // trajectory and would drift off the line, so don't launch dots on the dragged node's edges.
     if (this.drag?.kind === 'node' && (this.drag.id === from || this.drag.id === to)) return;
 
-    const { start, end } = edgeEndpoints(a, b, this.opts.nodeW, this.opts.nodeH);
+    const { start, end } = edgeEndpoints(a, b, a.width, this.opts.nodeH);
     const { c1, c2 } = bezierControls(start, end);
     const dot = this.dotPool.acquire();
     dot.from = from;
@@ -281,20 +328,28 @@ export class GLScene {
 
   // ---- internals ----
 
-  private createNodeView(n: TLNode): NodeView {
-    const { nodeW: w, nodeH: h } = this.opts;
+  /** Draws a node's rounded-rect background for the given width + kind (used on create, resize, recolor). */
+  private paintNodeRect(rect: Graphics, w: number, isEntry: boolean, isError: boolean): void {
+    const fill = isError ? this.palette.errorFill : isEntry ? this.palette.entryFill : this.palette.nodeFill;
+    const border = isError ? this.palette.errorBorder : this.palette.nodeBorder;
+    rect.clear().roundRect(0, 0, w, this.opts.nodeH, 10).fill({ color: fill }).stroke({ width: 1, color: border });
+  }
+
+  private createNodeView(n: TLNode, w: number): NodeView {
+    const { nodeH: h } = this.opts;
     const isEntry = n.kind === 'entry';
+    const isError = n.kind === 'error';
     const c = new Container();
 
-    const rect = new Graphics()
-      .roundRect(0, 0, w, h, 10)
-      .fill({ color: isEntry ? this.palette.entryFill : this.palette.nodeFill })
-      .stroke({ width: 1, color: this.palette.nodeBorder });
+    const textColor = isError ? this.palette.errorText : isEntry ? this.palette.entryText : this.palette.nodeText;
+
+    const rect = new Graphics();
+    this.paintNodeRect(rect, w, isEntry, isError);
 
     const label = new Text({
       text: n.label,
       style: {
-        fill: isEntry ? this.palette.entryText : this.palette.nodeText,
+        fill: textColor,
         fontSize: 13,
         fontWeight: '600',
         fontFamily: 'ui-sans-serif, system-ui, sans-serif',
@@ -309,26 +364,25 @@ export class GLScene {
     count.y = h / 2 - count.height / 2;
     count.x = w - 12 - count.width;
 
-    const led = new Graphics().circle(12, 11, 4).fill({ color: this.palette.ledIdle });
+    // Error nodes show a solid red LED; normal nodes use the idle LED + green flash overlay.
+    const led = new Graphics().circle(12, 11, 4).fill({ color: isError ? this.palette.errorBorder : this.palette.ledIdle });
     const ledFlash = new Graphics().circle(12, 11, 4).fill({ color: this.palette.flash });
     ledFlash.alpha = 0;
 
     c.addChild(rect, led, ledFlash, label, count);
     c.eventMode = 'static';
-    c.cursor = 'grab';
+    c.cursor = isError ? 'pointer' : 'grab';
     c.on('pointerdown', (e: FederatedPointerEvent) => this.startNodeDrag(e, n.id));
-    return { c, rect, label, count, led, ledFlash, isEntry };
+    return { id: n.id, c, rect, label, count, led, ledFlash, isEntry, isError, width: w };
   }
 
   private recolor(): void {
-    const { nodeW: w, nodeH: h } = this.opts;
     for (const v of this.nodeViews.values()) {
-      v.rect.clear().roundRect(0, 0, w, h, 10)
-        .fill({ color: v.isEntry ? this.palette.entryFill : this.palette.nodeFill })
-        .stroke({ width: 1, color: this.palette.nodeBorder });
-      v.label.style.fill = v.isEntry ? this.palette.entryText : this.palette.nodeText;
+      const textColor = v.isError ? this.palette.errorText : v.isEntry ? this.palette.entryText : this.palette.nodeText;
+      this.paintNodeRect(v.rect, v.width, v.isEntry, v.isError);
+      v.label.style.fill = textColor;
       v.count.style.fill = this.palette.countText;
-      v.led.clear().circle(12, 11, 4).fill({ color: this.palette.ledIdle });
+      v.led.clear().circle(12, 11, 4).fill({ color: v.isError ? this.palette.errorBorder : this.palette.ledIdle });
       v.ledFlash.clear().circle(12, 11, 4).fill({ color: this.palette.flash });
     }
     for (const ev of this.edgeViews.values()) {
@@ -341,7 +395,7 @@ export class GLScene {
     const a = this.positions.get(ev.from);
     const b = this.positions.get(ev.to);
     if (!a || !b) return;
-    const { start, end } = edgeEndpoints(a, b, this.opts.nodeW, this.opts.nodeH);
+    const { start, end } = edgeEndpoints(a, b, a.width, this.opts.nodeH);
     const { c1, c2 } = bezierControls(start, end);
     ev.line.clear()
       .moveTo(start.x, start.y)
@@ -392,11 +446,27 @@ export class GLScene {
   }
 
   private fit(): void {
-    const b = contentBounds(this.positions.values(), this.opts.nodeW, this.opts.nodeH);
+    const b = contentBounds(this.positions.values(), this.opts.nodeH);
     if (!b) return;
     const { scale, x, y } = fitTransform(b, this.app.screen.width, this.app.screen.height);
     this.world.scale.set(scale);
     this.world.position.set(x, y);
+  }
+
+  /** Re-fit the whole graph into view (the controls' "fit" button). */
+  fitView(): void {
+    this.fit();
+  }
+
+  /** Zoom by a factor around the canvas centre (the controls' +/− buttons). */
+  zoomBy(factor: number): void {
+    const cx = this.app.screen.width / 2;
+    const cy = this.app.screen.height / 2;
+    const wx = (cx - this.world.x) / this.world.scale.x;
+    const wy = (cy - this.world.y) / this.world.scale.y;
+    const ns = Math.min(4, Math.max(0.2, this.world.scale.x * factor));
+    this.world.scale.set(ns);
+    this.world.position.set(cx - wx * ns, cy - wy * ns);
   }
 
   private installPanZoom(): void {
@@ -424,7 +494,7 @@ export class GLScene {
     const pos = this.positions.get(id);
     if (!pos) return;
     const wp = this.toWorld(e.global);
-    this.drag = { kind: 'node', id, offset: { x: wp.x - pos.x, y: wp.y - pos.y } };
+    this.drag = { kind: 'node', id, offset: { x: wp.x - pos.x, y: wp.y - pos.y }, moved: false };
     this.removeDotsForNode(id); // in-flight dots on this node's edges would drift off the line
   }
 
@@ -452,10 +522,11 @@ export class GLScene {
       this.lastGlobal = { x: e.global.x, y: e.global.y };
       return;
     }
+    this.drag.moved = true;
     const wp = this.toWorld(e.global);
     const view = this.nodeViews.get(this.drag.id);
     if (!view) return;
-    const pos = { x: wp.x - this.drag.offset.x, y: wp.y - this.drag.offset.y };
+    const pos = { x: wp.x - this.drag.offset.x, y: wp.y - this.drag.offset.y, width: view.width };
     this.positions.set(this.drag.id, pos);
     view.c.position.set(pos.x, pos.y);
     for (const ev of this.edgeViews.values()) {
@@ -464,6 +535,11 @@ export class GLScene {
   };
 
   private readonly onDragEnd = (): void => {
+    // A press-release with no movement on an error node is a click → open its stacktrace.
+    if (this.drag?.kind === 'node' && !this.drag.moved) {
+      const view = this.nodeViews.get(this.drag.id);
+      if (view?.isError) this.opts.onErrorSelect?.(this.drag.id);
+    }
     this.drag = null;
   };
 

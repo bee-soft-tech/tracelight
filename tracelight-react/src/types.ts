@@ -2,8 +2,12 @@
 export interface TLNode {
   id: string;
   label: string;
-  kind: 'entry' | 'point';
+  kind: 'entry' | 'point' | 'error';
   count: number;
+  /** Exception message — present only on `error` nodes. */
+  message?: string;
+  /** Top stack frames — present only on `error` nodes. */
+  stack?: string[];
 }
 
 /** Cumulative latency of crossing an edge, in milliseconds, since the last reset. */

@@ -12,16 +12,17 @@ export function lerp(a: Point, b: Point, t: number): Point {
 
 /**
  * Endpoints of an edge between two nodes: the source's right-centre to the target's
- * left-centre (matching the left→right elk layout). Positions are node top-left corners.
+ * left-centre (matching the left→right elk layout). Positions are node top-left corners;
+ * {@code sourceWidth} is the source node's own width (nodes are sized to their content).
  */
 export function edgeEndpoints(
   source: Point,
   target: Point,
-  w: number,
+  sourceWidth: number,
   h: number,
 ): { start: Point; end: Point } {
   return {
-    start: { x: source.x + w, y: source.y + h / 2 },
+    start: { x: source.x + sourceWidth, y: source.y + h / 2 },
     end: { x: target.x, y: target.y + h / 2 },
   };
 }
@@ -55,10 +56,9 @@ export interface Bounds {
   maxY: number;
 }
 
-/** Bounding box of all node boxes (top-left positions plus w/h). Empty → null. */
+/** Bounding box of all node boxes (top-left positions plus per-node width and height). */
 export function contentBounds(
-  positions: Iterable<Point>,
-  w: number,
+  positions: Iterable<{ x: number; y: number; width: number }>,
   h: number,
 ): Bounds | null {
   let minX = Infinity;
@@ -70,7 +70,7 @@ export function contentBounds(
     any = true;
     minX = Math.min(minX, p.x);
     minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x + w);
+    maxX = Math.max(maxX, p.x + p.width);
     maxY = Math.max(maxY, p.y + h);
   }
   return any ? { minX, minY, maxX, maxY } : null;

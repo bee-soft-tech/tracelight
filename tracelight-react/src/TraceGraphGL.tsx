@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { layoutGraph, type NodePosition } from './layout';
 import { GLScene, type ColorMode } from './gl/scene';
+import type { TLNode } from './types';
 import type { TracelightState } from './useTracelight';
 
 const LAYOUT_DEBOUNCE_MS = 250;
@@ -17,6 +18,10 @@ export interface TraceGraphGLProps {
   showFps?: boolean;
   /** Show the min/avg/max timing labels over edges (default true). */
   showTimings?: boolean;
+  /** Show the zoom-in / zoom-out / fit controls (default true). */
+  showControls?: boolean;
+  /** Called when an error (red) node is clicked, with that node. */
+  onErrorSelect?: (node: TLNode) => void;
   className?: string;
   style?: CSSProperties;
 }
@@ -35,6 +40,8 @@ export function TraceGraphGL({
   colorMode = 'system',
   showFps = true,
   showTimings = true,
+  showControls = true,
+  onErrorSelect,
   className,
   style,
 }: TraceGraphGLProps) {
@@ -45,6 +52,9 @@ export function TraceGraphGL({
   const positionsRef = useRef<Map<string, NodePosition>>(new Map());
   const latest = useRef({ nodes, edges, nodeWidth, nodeHeight });
   latest.current = { nodes, edges, nodeWidth, nodeHeight };
+  // Keep the latest callback in a ref so the scene (created once) always calls the current one.
+  const onErrorSelectRef = useRef(onErrorSelect);
+  onErrorSelectRef.current = onErrorSelect;
 
   // Create the Pixi scene once; subsequent updates flow through sync()/pulse()/setColorMode().
   useEffect(() => {
@@ -60,6 +70,10 @@ export function TraceGraphGL({
       colorMode,
       showFps,
       showTimings,
+      onErrorSelect: (id) => {
+        const node = latest.current.nodes.find((n) => n.id === id);
+        if (node) onErrorSelectRef.current?.(node);
+      },
     }).then((scene) => {
       if (cancelled) {
         scene.destroy();
@@ -117,6 +131,24 @@ export function TraceGraphGL({
   }, [nodeKey]);
 
   return (
-    <div ref={containerRef} className={className} style={{ width: '100%', height: '100%', ...style }} />
+    <div
+      className={className}
+      style={{ position: 'relative', width: '100%', height: '100%', ...style }}
+    >
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {showControls && (
+        <div className="tl-gl-controls">
+          <button type="button" aria-label="Zoom in" onClick={() => sceneRef.current?.zoomBy(1.2)}>
+            +
+          </button>
+          <button type="button" aria-label="Zoom out" onClick={() => sceneRef.current?.zoomBy(1 / 1.2)}>
+            −
+          </button>
+          <button type="button" aria-label="Fit view" onClick={() => sceneRef.current?.fitView()}>
+            ⤢
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

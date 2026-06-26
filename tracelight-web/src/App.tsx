@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { TraceGraph, TraceGraphGL, useTracelight } from '@tracelight/react';
+import { TraceGraph, TraceGraphGL, useTracelight, type TLNode } from '@tracelight/react';
 import '@tracelight/react/styles.css';
+import { StackPanel } from './StackPanel';
 
 type Renderer = 'reactflow' | 'webgl';
 
@@ -51,6 +52,7 @@ export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [renderer, setRenderer] = useState<Renderer>('reactflow');
   const [showTimings, setShowTimings] = useState(true);
+  const [selectedError, setSelectedError] = useState<TLNode | null>(null);
 
   return (
     <div className="app">
@@ -118,9 +120,18 @@ export default function App() {
             showBackground
             colorMode={theme}
             showTimings={showTimings}
+            onErrorSelect={setSelectedError}
           />
         ) : (
-          <TraceGraphGL graph={graph} colorMode={theme} showTimings={showTimings} />
+          <TraceGraphGL
+            graph={graph}
+            colorMode={theme}
+            showTimings={showTimings}
+            onErrorSelect={setSelectedError}
+          />
+        )}
+        {selectedError && (
+          <StackPanel node={selectedError} onClose={() => setSelectedError(null)} />
         )}
       </main>
     </div>

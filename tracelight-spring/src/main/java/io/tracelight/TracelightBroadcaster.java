@@ -208,6 +208,13 @@ public class TracelightBroadcaster implements AutoCloseable {
         o.put("label", n.label());
         o.put("kind", n.kind());
         o.put("count", n.count());
+        if ("error".equals(n.kind())) {
+            o.put("message", n.message());
+            ArrayNode stack = o.putArray("stack");
+            if (n.stack() != null) {
+                n.stack().forEach(stack::add);
+            }
+        }
         return o;
     }
 

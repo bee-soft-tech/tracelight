@@ -35,4 +35,32 @@ public class DefaultTraceRecorder implements TraceRecorder {
         }
         broadcaster.onHit(result, traceId);
     }
+
+    /** Number of stack frames captured per error node. */
+    private static final int MAX_FRAMES = 10;
+
+    @Override
+    public void error(Throwable t) {
+        if (t == null) {
+            return;
+        }
+        var ctx = TraceContext.current();
+        // Dedup: the same throwable unwinding through nested @TracePoint methods is recorded once.
+        if (ctx != null && !ctx.markErrorIfNew(t)) {
+            return;
+        }
+        var from = (ctx != null) ? ctx.currentNodeId() : GraphRegistry.ENTRY_ID;
+        var traceId = (ctx != null) ? ctx.traceId() : "-";
+
+        var simpleName = t.getClass().getSimpleName();
+        var stack = new java.util.ArrayList<String>(MAX_FRAMES);
+        var frames = t.getStackTrace();
+        for (int i = 0; i < frames.length && i < MAX_FRAMES; i++) {
+            stack.add(frames[i].toString());
+        }
+
+        var result = registry.recordError(from, simpleName, t.getMessage(), stack);
+        // An error is a leaf — leave currentNodeId untouched so the request can keep unwinding.
+        broadcaster.onHit(result, traceId);
+    }
 }

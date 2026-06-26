@@ -34,4 +34,16 @@ public final class Tracelight {
             r.hit(name);
         }
     }
+
+    /**
+     * Records an exception thrown at the current point as a red error node on the graph.
+     * Call it from a {@code catch} block; methods annotated with {@code @TracePoint} report
+     * thrown exceptions automatically.
+     */
+    public static void error(Throwable t) {
+        TraceRecorder r = recorder;
+        if (r != null) {
+            r.error(t);
+        }
+    }
 }

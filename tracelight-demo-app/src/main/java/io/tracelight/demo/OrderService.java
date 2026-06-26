@@ -43,6 +43,11 @@ public class OrderService {
         }
         if (order.amount() > 1000) {
             Tracelight.hit("fraud-check");
+            // Demo: very large charges "fail" so the graph shows a red error node.
+            if (order.amount() > 1900) {
+                throw new IllegalStateException(
+                        "Payment gateway declined charge of " + order.amount() + " (limit 1900)");
+            }
         }
         work();
     }

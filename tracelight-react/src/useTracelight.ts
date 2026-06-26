@@ -49,8 +49,20 @@ export function useTracelight(url: string): TracelightState {
       rafRef.current = null;
       if (!dirtyRef.current) return;
       dirtyRef.current = false;
-      setNodes(Array.from(nodesRef.current.values()));
-      setEdges(Array.from(edgesRef.current.values()));
+
+      // Error nodes only appear once at least one exception has actually occurred. They are
+      // never removed from the topology (so a reset just zeroes the counter), so we hide any
+      // error node whose counter is 0 — and the edges leading into it — until it fires again.
+      const hidden = new Set<string>();
+      const nodes: TLNode[] = [];
+      nodesRef.current.forEach((n) => {
+        if (n.kind === 'error' && n.count === 0) hidden.add(n.id);
+        else nodes.push(n);
+      });
+      const edges = Array.from(edgesRef.current.values()).filter((e) => !hidden.has(e.to));
+
+      setNodes(nodes);
+      setEdges(edges);
     });
   }, []);
 

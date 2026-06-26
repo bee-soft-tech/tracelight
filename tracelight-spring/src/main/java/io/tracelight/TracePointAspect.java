@@ -1,11 +1,15 @@
 package io.tracelight;
 
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 
-/** Turns {@link TracePoint}-annotated method calls into {@link TraceRecorder#hit(String)} calls. */
+/**
+ * Turns {@link TracePoint}-annotated method calls into {@link TraceRecorder#hit(String)} calls,
+ * and exceptions thrown out of them into {@link TraceRecorder#error(Throwable)} calls.
+ */
 @Aspect
 public class TracePointAspect {
 
@@ -22,5 +26,10 @@ public class TracePointAspect {
             name = ((MethodSignature) joinPoint.getSignature()).getMethod().getName();
         }
         recorder.hit(name);
+    }
+
+    @AfterThrowing(pointcut = "@annotation(io.tracelight.TracePoint)", throwing = "ex")
+    public void onTracePointThrows(Throwable ex) {
+        recorder.error(ex);
     }
 }

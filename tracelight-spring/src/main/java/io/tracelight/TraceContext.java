@@ -17,6 +17,7 @@ public final class TraceContext {
     private final String traceId;
     private String currentNodeId;
     private long lastHitNanos;
+    private Throwable lastError;
 
     private TraceContext(String traceId, String entryNodeId) {
         this.traceId = traceId;
@@ -60,5 +61,18 @@ public final class TraceContext {
 
     public void lastHitNanos(long nanos) {
         this.lastHitNanos = nanos;
+    }
+
+    /**
+     * Marks {@code t} as recorded and reports whether it is new to this request. Used to dedup a
+     * single exception that unwinds through several {@code @TracePoint} methods (each fires
+     * {@code @AfterThrowing} with the same object) — only the first, deepest one is recorded.
+     */
+    public boolean markErrorIfNew(Throwable t) {
+        if (lastError == t) {
+            return false;
+        }
+        lastError = t;
+        return true;
     }
 }

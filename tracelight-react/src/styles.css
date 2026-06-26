@@ -15,6 +15,9 @@
   --tl-edge: #94a3b8;
   --tl-flash: #22c55e;
   --tl-bullet-idle: #ef4444;
+  --tl-error-bg: #fee2e2;
+  --tl-error-border: #ef4444;
+  --tl-error-text: #991b1b;
 }
 
 /*
@@ -31,6 +34,9 @@
     --tl-count-bg: #334155;
     --tl-count-text: #e2e8f0;
     --tl-edge: #64748b;
+    --tl-error-bg: #450a0a;
+    --tl-error-border: #ef4444;
+    --tl-error-text: #fecaca;
   }
 }
 
@@ -43,6 +49,9 @@
   --tl-count-bg: #334155;
   --tl-count-text: #e2e8f0;
   --tl-edge: #64748b;
+  --tl-error-bg: #450a0a;
+  --tl-error-border: #ef4444;
+  --tl-error-text: #fecaca;
 }
 
 .tl-node {
@@ -52,7 +61,8 @@
   justify-content: space-between;
   gap: 8px;
   box-sizing: border-box;
-  width: 170px;
+  min-width: 170px;
+  width: max-content;
   height: 56px;
   padding: 0 12px;
   border: 1px solid var(--tl-node-border);
@@ -67,6 +77,18 @@
   background: var(--tl-entry-bg);
   color: var(--tl-entry-text);
   border-color: var(--tl-entry-bg);
+}
+
+.tl-node--error {
+  background: var(--tl-error-bg);
+  color: var(--tl-error-text);
+  border-color: var(--tl-error-border);
+  cursor: pointer;
+}
+
+.tl-node--error .tl-node__count {
+  background: var(--tl-error-border);
+  color: #ffffff;
 }
 
 .tl-node__label {
@@ -106,6 +128,13 @@
   border-radius: 50%;
   background: var(--tl-bullet-idle);
   overflow: hidden;
+}
+
+.tl-node__bullet-error {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tl-error-border);
 }
 
 .tl-node__bullet-hit {
@@ -154,5 +183,40 @@
   padding: 1px 4px;
   border-radius: 4px;
   color: var(--tl-count-text);
+  background: var(--tl-count-bg);
+}
+
+/* Zoom / fit controls for the WebGL renderer (the React Flow renderer has its own). */
+.tl-gl-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+}
+
+.tl-gl-controls button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-bottom: 1px solid var(--tl-node-border);
+  background: var(--tl-node-bg);
+  color: var(--tl-node-text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tl-gl-controls button:last-child {
+  border-bottom: none;
+}
+
+.tl-gl-controls button:hover {
   background: var(--tl-count-bg);
 }

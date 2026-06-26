@@ -43,12 +43,14 @@ export interface TraceGraphProps {
   colorMode?: 'light' | 'dark' | 'system';
   /** Show the min/avg/max timing labels over edges (default true). */
   showTimings?: boolean;
+  /** Called when an error (red) node is clicked, with that node. */
+  onErrorSelect?: (node: TLNode) => void;
 }
 
 const DEFAULT_NODE_TYPES: NodeTypes = { tl: DefaultNode };
 const DEFAULT_EDGE_TYPES: EdgeTypes = { tl: PulseEdge };
 const LAYOUT_DEBOUNCE_MS = 250;
-const ZERO: NodePosition = { x: 0, y: 0 };
+const ZERO: NodePosition = { x: 0, y: 0, width: 170 };
 
 /**
  * Renders the live trace graph with React Flow + elkjs (left→right layout).
@@ -71,6 +73,7 @@ export function TraceGraph({
   showBackground = true,
   colorMode = 'system',
   showTimings = true,
+  onErrorSelect,
 }: TraceGraphProps) {
   const { nodes, edges, onPulse } = graph;
 
@@ -109,7 +112,7 @@ export function TraceGraph({
   // nodes that don't yet have a position, so a dragged node is never moved back.
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     let moved = false;
-    const moves = new Map<string, NodePosition>();
+    const moves = new Map<string, { x: number; y: number }>();
     for (const ch of changes) {
       if (ch.type === 'position' && ch.position) {
         moves.set(ch.id, ch.position);
@@ -119,7 +122,8 @@ export function TraceGraph({
     if (!moved) return;
     setPositions((prev) => {
       const next = new Map(prev);
-      moves.forEach((pos, id) => next.set(id, pos));
+      // Keep the node's computed width; a drag only changes x/y.
+      moves.forEach((pos, id) => next.set(id, { ...pos, width: prev.get(id)?.width ?? ZERO.width }));
       return next;
     });
   }, []);
@@ -214,7 +218,7 @@ export function TraceGraph({
         id: n.id,
         type: 'tl',
         position,
-        data: { node: n, active: blink > 0, blink, flashMs, renderNode },
+        data: { node: n, active: blink > 0, blink, flashMs, width: position.width, renderNode },
       };
       cache.set(n.id, fresh);
       return fresh;
@@ -252,6 +256,10 @@ export function TraceGraph({
         nodes={rfNodes}
         edges={rfEdges}
         onNodesChange={onNodesChange}
+        onNodeClick={(_, n) => {
+          const node = (n.data as TLNodeData).node;
+          if (node.kind === 'error') onErrorSelect?.(node);
+        }}
         nodeTypes={DEFAULT_NODE_TYPES}
         edgeTypes={DEFAULT_EDGE_TYPES}
         colorMode={colorMode}

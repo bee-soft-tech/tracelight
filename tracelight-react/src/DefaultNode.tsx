@@ -14,6 +14,8 @@ export interface TLNodeData {
   blink: number;
   /** Fade-out duration of the bullet flash, ms — kept equal to the edge flash. */
   flashMs?: number;
+  /** Computed node width (px) — sized to the label + counter by the layout. */
+  width?: number;
   renderNode?: (node: TLNode, active: boolean) => ReactNode;
   [key: string]: unknown;
 }
@@ -26,17 +28,26 @@ export interface TLNodeData {
  * Styling lives in CSS classes; pass `renderNode` to replace the body entirely.
  */
 export function DefaultNode({ data }: NodeProps) {
-  const { node, active, blink, flashMs, renderNode } = data as TLNodeData;
+  const { node, active, blink, flashMs, width, renderNode } = data as TLNodeData;
+
+  const isError = node.kind === 'error';
 
   return (
-    <div className={`tl-node tl-node--${node.kind}`}>
+    <div
+      className={`tl-node tl-node--${node.kind}`}
+      style={width != null ? { width } : undefined}
+    >
       <span className="tl-node__bullet">
-        {blink > 0 && (
-          <span
-            key={blink}
-            className="tl-node__bullet-hit"
-            style={flashMs != null ? { animationDuration: `${flashMs}ms` } : undefined}
-          />
+        {isError ? (
+          <span className="tl-node__bullet-error" />
+        ) : (
+          blink > 0 && (
+            <span
+              key={blink}
+              className="tl-node__bullet-hit"
+              style={flashMs != null ? { animationDuration: `${flashMs}ms` } : undefined}
+            />
+          )
         )}
       </span>
       <Handle type="target" position={Position.Left} className="tl-handle" />

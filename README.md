@@ -79,6 +79,31 @@ Dark mode (follows your browser, or toggle it):
 
 ---
 
+## Two renderers: React Flow vs WebGL
+
+Both renderers draw the **same graph from the same data** — they differ only in *how* they paint.
+
+| | `<TraceGraph>` — React Flow | `<TraceGraphGL>` — WebGL (PixiJS) |
+|---|---|---|
+| Technology | **DOM + SVG** (one HTML element per node, an SVG `<path>` per edge) | **WebGL** — everything is GPU-drawn sprites on a single `<canvas>` |
+| Rendered by | the browser's layout engine + compositor | the GPU |
+| A moving dot costs | a real element to lay out & repaint each frame | a coordinate update on the GPU |
+| Scales with | number of DOM elements | mostly pixels/sprites (much cheaper) |
+| Stays smooth up to | hundreds of moving elements | **thousands of dots in flight** |
+| Free extras | accessibility (screen-reader nodes), CSS styling, hit-testing | — (drawn manually) |
+
+**Rule of thumb:**
+
+- **React Flow** (default) — accessible, easy to style, simpler. Great for normal traffic.
+- **WebGL** — when you push heavy traffic and want every request to show as a dot flowing along
+  the path. It holds 120 fps with 100+ dots in flight, where DOM-based rendering starts to stutter.
+
+> This is the same architectural split you see across graph libraries: DOM/SVG tools (React Flow,
+> d3) favour convenience and accessibility; WebGL tools (Sigma.js, Cosmograph, Netflix's Vizceral)
+> favour raw throughput. Tracelight ships both so you can pick per use case.
+
+---
+
 ## Quick start (run the demo)
 
 ```bash

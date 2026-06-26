@@ -2,6 +2,7 @@ package io.tracelight;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Map;
 
@@ -42,6 +43,83 @@ class GraphRegistryTest {
 
         registry.resetCounters();
         assertThat(counts(registry).get("a")).isEqualTo(0L);
+    }
+
+    @Test
+    void recordErrorCreatesRedNodeWithMessageAndStack() {
+        GraphRegistry registry = new GraphRegistry();
+
+        registry.recordHit("payment", GraphRegistry.ENTRY_ID);
+        registry.recordError("payment", "IllegalStateException", "boom", List.of("at A", "at B"));
+
+        GraphRegistry.NodeState err = registry.node("payment!IllegalStateException");
+        assertThat(err).isNotNull();
+        assertThat(err.kind()).isEqualTo("error");
+        assertThat(err.label()).isEqualTo("IllegalStateException");
+        assertThat(err.message()).isEqualTo("boom");
+        assertThat(err.stack()).containsExactly("at A", "at B");
+        assertThat(err.count()).isEqualTo(1);
+        assertThat(edgeIds(registry)).contains("payment->payment!IllegalStateException");
+    }
+
+    @Test
+    void recordErrorIncrementsCounterAndKeepsFirstStack() {
+        GraphRegistry registry = new GraphRegistry();
+
+        registry.recordError("payment", "IllegalStateException", "first", List.of("at A"));
+        registry.recordError("payment", "IllegalStateException", "second", List.of("at B"));
+
+        GraphRegistry.NodeState err = registry.node("payment!IllegalStateException");
+        assertThat(err.count()).isEqualTo(2);
+        assertThat(err.message()).isEqualTo("first"); // first occurrence wins
+    }
+
+    @Test
+    void resetClearsErrorCounters() {
+        GraphRegistry registry = new GraphRegistry();
+        registry.recordError("payment", "IllegalStateException", "boom", List.of("at A"));
+
+        registry.resetCounters();
+
+        assertThat(registry.node("payment!IllegalStateException").count()).isEqualTo(0);
+    }
+
+    @Test
+    void recorderAttachesErrorToCurrentNode() {
+        GraphRegistry registry = new GraphRegistry();
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+
+        TraceContext.start(GraphRegistry.ENTRY_ID);
+        try {
+            recorder.hit("payment");
+            recorder.error(new IllegalStateException("boom"));
+        } finally {
+            TraceContext.clear();
+        }
+
+        GraphRegistry.NodeState err = registry.node("payment!IllegalStateException");
+        assertThat(err).isNotNull();
+        assertThat(err.message()).isEqualTo("boom");
+        assertThat(err.stack()).isNotEmpty();
+        assertThat(edgeIds(registry)).contains("payment->payment!IllegalStateException");
+    }
+
+    @Test
+    void recorderRecordsSameThrowableOnce() {
+        GraphRegistry registry = new GraphRegistry();
+        DefaultTraceRecorder recorder = new DefaultTraceRecorder(registry, new TracelightBroadcaster(registry, 0));
+
+        TraceContext.start(GraphRegistry.ENTRY_ID);
+        try {
+            recorder.hit("payment");
+            IllegalStateException ex = new IllegalStateException("boom");
+            recorder.error(ex);
+            recorder.error(ex); // same object unwinding through another @TracePoint
+        } finally {
+            TraceContext.clear();
+        }
+
+        assertThat(registry.node("payment!IllegalStateException").count()).isEqualTo(1);
     }
 
     @Test

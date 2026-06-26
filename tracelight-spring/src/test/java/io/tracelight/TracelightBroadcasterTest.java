@@ -43,6 +43,33 @@ class TracelightBroadcasterTest {
         assertThat(edge.has("samples")).isFalse();
     }
 
+    @Test
+    void snapshotIncludesMessageAndStackForErrorNodes() throws Exception {
+        GraphRegistry registry = new GraphRegistry();
+        registry.recordError("payment", "IllegalStateException", "boom", java.util.List.of("at A", "at B"));
+        TracelightBroadcaster broadcaster = new TracelightBroadcaster(registry, 0);
+
+        JsonNode snapshot = snapshotOf(broadcaster);
+        JsonNode errorNode = null;
+        for (JsonNode n : snapshot.get("nodes")) {
+            if ("error".equals(n.path("kind").asText())) {
+                errorNode = n;
+            }
+        }
+        assertThat(errorNode).isNotNull();
+        assertThat(errorNode.get("message").asText()).isEqualTo("boom");
+        assertThat(errorNode.get("stack").get(0).asText()).isEqualTo("at A");
+    }
+
+    private JsonNode snapshotOf(TracelightBroadcaster broadcaster) throws Exception {
+        WebSocketSession session = mock(WebSocketSession.class);
+        when(session.isOpen()).thenReturn(true);
+        ArgumentCaptor<TextMessage> captor = ArgumentCaptor.forClass(TextMessage.class);
+        broadcaster.register(session);
+        verify(session).sendMessage(captor.capture());
+        return mapper.readTree(captor.getValue().getPayload());
+    }
+
     private JsonNode firstEdgeOfSnapshot(TracelightBroadcaster broadcaster) throws Exception {
         WebSocketSession session = mock(WebSocketSession.class);
         when(session.isOpen()).thenReturn(true);

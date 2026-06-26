@@ -19,12 +19,15 @@ public class GraphRegistry {
 
     public static final String ENTRY_ID = "ENTRY";
 
-    /** A point in the code. {@code kind} is {@code "entry"} or {@code "point"}. */
+    /** A point in the code. {@code kind} is {@code "entry"}, {@code "point"} or {@code "error"}. */
     public static final class NodeState {
         final String id;
         final String label;
         final String kind;
         final AtomicLong count = new AtomicLong();
+        // Set once, on first sight, for error nodes only.
+        volatile String message;
+        volatile List<String> stack;
 
         NodeState(String id, String label, String kind) {
             this.id = id;
@@ -36,6 +39,10 @@ public class GraphRegistry {
         public String label() { return label; }
         public String kind() { return kind; }
         public long count() { return count.get(); }
+        /** Exception message for {@code "error"} nodes; {@code null} otherwise. */
+        public String message() { return message; }
+        /** Top stack frames for {@code "error"} nodes; {@code null} otherwise. */
+        public List<String> stack() { return stack; }
     }
 
     /**
@@ -163,6 +170,43 @@ public class GraphRegistry {
         edge.recordTiming(elapsedNanos);
 
         return new HitResult(from, name, count, newNodes, newEdge[0]);
+    }
+
+    /**
+     * Records an exception thrown at {@code from}: creates (on first sight) a red {@code "error"}
+     * node {@code from + "!" + simpleName} carrying {@code message}/{@code stack}, plus the edge
+     * {@code from -> errorNode}, and increments the error node's counter. The stored message/stack
+     * come from the first occurrence; later ones only bump the counter.
+     */
+    public HitResult recordError(String from, String simpleName, String message, List<String> stack) {
+        var newNodes = new ArrayList<NodeState>(2);
+        var fromId = (from != null && !from.isEmpty()) ? from : ENTRY_ID;
+
+        nodes.computeIfAbsent(fromId, k -> {
+            NodeState n = new NodeState(k, k, ENTRY_ID.equals(k) ? "entry" : "point");
+            newNodes.add(n);
+            return n;
+        });
+
+        var errorId = fromId + "!" + simpleName;
+        var errNode = nodes.computeIfAbsent(errorId, k -> {
+            NodeState n = new NodeState(k, simpleName, "error");
+            n.message = message;
+            n.stack = stack;
+            newNodes.add(n);
+            return n;
+        });
+        long count = errNode.count.incrementAndGet();
+
+        var edgeId = fromId + "->" + errorId;
+        EdgeState[] newEdge = {null};
+        edges.computeIfAbsent(edgeId, k -> {
+            var e = new EdgeState(k, fromId, errorId);
+            newEdge[0] = e;
+            return e;
+        });
+
+        return new HitResult(fromId, errorId, count, newNodes, newEdge[0]);
     }
 
     public Collection<NodeState> nodes() {
