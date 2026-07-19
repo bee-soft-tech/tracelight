@@ -1,0 +1,56 @@
+name: Publish npm
+
+# Publishes the tracelight-react package to npm when a GitHub Release is published
+# (same trigger as the Maven release), or manually via workflow_dispatch. The version
+# comes from the tag (v0.2.0 -> 0.2.0), matching the JVM release flow.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0)'
+        required: true
+
+jobs:
+  npm:
+    name: Publish tracelight-react to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ github.event.inputs.version }}"
+          fi
+          if [ -z "$V" ]; then echo "::error::No version to publish."; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Publishing tracelight-react@$V"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Set package version
+        run: npm --workspace tracelight-react version --no-git-tag-version --allow-same-version "${{ steps.ver.outputs.version }}"
+
+      - name: Build
+        run: npm --workspace tracelight-react run build
+
+      - name: Publish
+        run: npm --workspace tracelight-react publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
