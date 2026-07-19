@@ -18,6 +18,8 @@ export interface TraceGraphProps {
   showFps?: boolean;
   /** Show the min/avg/max timing labels over edges (default false). */
   showTimings?: boolean;
+  /** Show the per-node request counter (default true; hide when reviewing a single request). */
+  showCounts?: boolean;
   /** Show the zoom-in / zoom-out / fit controls (default true). */
   showControls?: boolean;
   /** Freeze live monitoring (Review mode): stop live dots and hold the graph still. */
@@ -46,6 +48,7 @@ export function TraceGraph({
   colorMode = 'system',
   showFps = true,
   showTimings = false,
+  showCounts = true,
   showControls = true,
   frozen = false,
   replayTrace = null,
@@ -79,6 +82,7 @@ export function TraceGraph({
       colorMode,
       showFps,
       showTimings,
+      showCounts,
       onErrorSelect: (id) => {
         const node = latest.current.nodes.find((n) => n.id === id);
         if (node) onErrorSelectRef.current?.(node);
@@ -135,6 +139,10 @@ export function TraceGraph({
   useEffect(() => {
     sceneRef.current?.setShowTimings(showTimings);
   }, [showTimings]);
+
+  useEffect(() => {
+    sceneRef.current?.setShowCounts(showCounts);
+  }, [showCounts]);
 
   // Review mode: freeze/unfreeze live monitoring.
   useEffect(() => {

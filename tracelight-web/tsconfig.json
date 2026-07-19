@@ -12,7 +12,7 @@
     "esModuleInterop": true,
     "types": ["node"],
     "paths": {
-      "@tracelight/react": ["../tracelight-react/src/index.ts"]
+      "tracelight-react": ["../tracelight-react/src/index.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]

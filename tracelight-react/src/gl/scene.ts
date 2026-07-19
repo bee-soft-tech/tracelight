@@ -151,6 +151,8 @@ export interface GLSceneOptions {
   colorMode: ColorMode;
   showFps: boolean;
   showTimings: boolean;
+  /** Show the per-node request counter (hidden when reviewing a single request). */
+  showCounts: boolean;
   /** Called with the node id when an error node is clicked (no drag). */
   onErrorSelect?: (id: string) => void;
 }
@@ -202,6 +204,7 @@ export class GLScene {
     | { kind: 'node'; id: string; offset: Point; moved: boolean }
     | null = null;
   private lastGlobal: Point = { x: 0, y: 0 };
+  private showCounts = true;
 
   private constructor(
     private readonly app: Application,
@@ -212,6 +215,7 @@ export class GLScene {
     // Edge-timing labels sit on top of everything so they stay readable.
     this.world.addChild(this.edgesLayer, this.dotsLayer, this.nodesLayer, this.labelsLayer);
     this.labelsLayer.visible = opts.showTimings;
+    this.showCounts = opts.showCounts;
     this.dragRing.visible = false;
     this.nodesLayer.addChild(this.dragRing);
     this.app.stage.addChild(this.world, this.hud);
@@ -470,6 +474,12 @@ export class GLScene {
     this.labelsLayer.visible = show;
   }
 
+  /** Show/hide the per-node request counters (hidden while reviewing a single request). */
+  setShowCounts(show: boolean): void {
+    this.showCounts = show;
+    this.nodeViews.forEach((v) => (v.count.visible = show));
+  }
+
   setColorMode(mode: ColorMode): void {
     this.palette = resolvePalette(mode);
     this.app.renderer.background.color = this.palette.bg;
@@ -519,6 +529,7 @@ export class GLScene {
     });
     count.y = h / 2 - count.height / 2;
     count.x = w - 12 - count.width;
+    count.visible = this.showCounts;
 
     // Error nodes show a solid red LED; normal nodes use the idle LED + green flash overlay.
     const led = new Graphics().circle(12, 11, 4).fill({ color: isError ? this.palette.errorBorder : this.palette.ledIdle });

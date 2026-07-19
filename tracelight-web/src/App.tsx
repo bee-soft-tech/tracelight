@@ -252,6 +252,7 @@ export default function App() {
             graph={view}
             colorMode={theme}
             showTimings={showTimings}
+            showCounts={!reviewing}
             frozen={reviewing}
             replayTrace={playing ? currentTrace : null}
             replaySpeed={speed}

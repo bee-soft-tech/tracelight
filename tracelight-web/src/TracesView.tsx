@@ -185,6 +185,7 @@ export function TracesView({
                   frozen
                   replayTrace={current}
                   replaySpeed={replaySpeed}
+                  showCounts={false}
                   showControls={false}
                   showFps={false}
                 />
