@@ -38,9 +38,9 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Test (@tracelight/react)
-        run: npm --workspace @tracelight/react run test
+      - name: Test (tracelight-react)
+        run: npm --workspace tracelight-react run test
       - name: Build library
-        run: npm --workspace @tracelight/react run build
+        run: npm --workspace tracelight-react run build
       - name: Build web demo
         run: npm --workspace tracelight-web run build
