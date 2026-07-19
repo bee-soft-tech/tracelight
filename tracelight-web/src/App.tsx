@@ -58,7 +58,7 @@ export default function App() {
   const [url, setUrl] = useState(DEFAULT_WS);
   const [activeUrl, setActiveUrl] = useState(DEFAULT_WS);
   const [theme, toggleTheme] = useTheme();
-  const [showTimings, setShowTimings] = useState(true);
+  const [showTimings, setShowTimings] = useState(false);
   const [selectedError, setSelectedError] = useState<TLNode | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
   const [tab, setTab] = useState<'graph' | 'traces'>('graph');

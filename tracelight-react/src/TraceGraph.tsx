@@ -16,7 +16,7 @@ export interface TraceGraphProps {
   colorMode?: ColorMode;
   /** Show the FPS + live-dot-count overlay (default true). */
   showFps?: boolean;
-  /** Show the min/avg/max timing labels over edges (default true). */
+  /** Show the min/avg/max timing labels over edges (default false). */
   showTimings?: boolean;
   /** Show the zoom-in / zoom-out / fit controls (default true). */
   showControls?: boolean;
@@ -45,7 +45,7 @@ export function TraceGraph({
   flashMs = 500,
   colorMode = 'system',
   showFps = true,
-  showTimings = true,
+  showTimings = false,
   showControls = true,
   frozen = false,
   replayTrace = null,
