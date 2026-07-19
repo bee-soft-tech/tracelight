@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RouteInfo } from '@tracelight/react';
+import type { RouteInfo } from 'tracelight-react';
 
 interface RouteSelectProps {
   routes: RouteInfo[];

@@ -6,8 +6,8 @@ import {
   useTraceRecorder,
   deriveRoutes,
   type TLNode,
-} from '@tracelight/react';
-import '@tracelight/react/styles.css';
+} from 'tracelight-react';
+import 'tracelight-react/styles.css';
 import { StackPanel } from './StackPanel';
 import { RouteSelect } from './RouteSelect';
 import { ReviewBar } from './ReviewBar';

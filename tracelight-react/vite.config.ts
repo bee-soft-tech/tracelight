@@ -13,7 +13,9 @@ export default defineConfig({
       fileName: 'tracelight-react',
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      // Peer deps + pixi.js stay external (consumers install them via deps/peerDeps); elkjs is
+      // bundled because it's imported as a Vite `?worker`, which non-Vite consumers can't resolve.
+      external: ['react', 'react-dom', 'react/jsx-runtime', 'pixi.js'],
     },
   },
 });

@@ -1,4 +1,4 @@
-import type { TLNode } from '@tracelight/react';
+import type { TLNode } from 'tracelight-react';
 
 /** Slide-in panel showing the message + stacktrace of a clicked error node. */
 export function StackPanel({ node, onClose }: { node: TLNode; onClose: () => void }) {

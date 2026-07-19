@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createStore, get, set, del } from 'idb-keyval';
-import { parseTraceExport, serializeTraces, type RecordedTrace } from '@tracelight/react';
+import { parseTraceExport, serializeTraces, type RecordedTrace } from 'tracelight-react';
 
 /**
  * Browser-local persistence for captured requests, backed by IndexedDB (via idb-keyval). Data lives

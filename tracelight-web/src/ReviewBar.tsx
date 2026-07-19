@@ -1,4 +1,4 @@
-import type { RecordedTrace } from '@tracelight/react';
+import type { RecordedTrace } from 'tracelight-react';
 
 interface ReviewBarProps {
   traces: RecordedTrace[];

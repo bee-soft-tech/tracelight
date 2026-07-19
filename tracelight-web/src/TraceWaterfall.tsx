@@ -1,4 +1,4 @@
-import { waterfallLayout, type RecordedTrace } from '@tracelight/react';
+import { waterfallLayout, type RecordedTrace } from 'tracelight-react';
 
 /**
  * Zipkin-style timeline for one captured request: each hop is a bar starting where the previous

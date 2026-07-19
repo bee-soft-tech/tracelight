@@ -9,11 +9,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@tracelight/react/styles.css',
+        find: 'tracelight-react/styles.css',
         replacement: resolve(__dirname, '../tracelight-react/src/styles.css'),
       },
       {
-        find: '@tracelight/react',
+        find: 'tracelight-react',
         replacement: resolve(__dirname, '../tracelight-react/src/index.ts'),
       },
     ],
