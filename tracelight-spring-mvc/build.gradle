@@ -1,0 +1,28 @@
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management'
+}
+
+description = 'Tracelight for Spring MVC: servlet WebSocket endpoint and AOP request tracking.'
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.3.4"
+    }
+}
+
+dependencies {
+    api project(':tracelight-core')
+
+    // Brings spring-web, spring-websocket and the embedded tomcat websocket runtime,
+    // so any app that adds this library gets a working /tracelight/ws endpoint.
+    api 'org.springframework.boot:spring-boot-starter-websocket'
+    api 'org.springframework.boot:spring-boot-starter-aop'
+    api 'org.springframework.boot:spring-boot-autoconfigure'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+apply from: "$rootDir/gradle/publishing.gradle"

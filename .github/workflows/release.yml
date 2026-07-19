@@ -1,0 +1,53 @@
+name: Release
+
+# Publishes the JVM libraries to the Maven Central Portal when you publish a GitHub Release.
+# Flow: GitHub → Releases → "Draft a new release" → tag e.g. v0.2.0 → "Publish release".
+# The tag name (minus the leading "v") becomes the artifact version, e.g. v0.2.0 → 0.2.0.
+# The deployment is staged (USER_MANAGED) — after the run, click "Publish" in
+# https://central.sonatype.com to actually release it.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.2.0)'
+        required: true
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            V="${GITHUB_REF_NAME#v}"          # v0.2.0 -> 0.2.0
+          else
+            V="${{ github.event.inputs.version }}"
+          fi
+          if [ -z "$V" ]; then
+            echo "::error::Could not determine a version to publish."; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Publishing version: $V"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Publish aggregation to Central Portal
+        run: ./gradlew publishAggregationToCentralPortal -PreleaseVersion=${{ steps.ver.outputs.version }} --no-daemon
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}

@@ -1,0 +1,29 @@
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management'
+}
+
+description = 'Tracelight for Spring WebFlux: reactive WebSocket endpoint and AOP request tracking with Reactor context propagation.'
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.3.4"
+    }
+}
+
+dependencies {
+    api project(':tracelight-core')
+
+    // Reactive web + WebSocket, the @Around aspect, and ThreadLocal<->Reactor Context bridging.
+    api 'org.springframework.boot:spring-boot-starter-webflux'
+    api 'org.springframework.boot:spring-boot-starter-aop'
+    api 'io.micrometer:context-propagation'
+    api 'org.springframework.boot:spring-boot-autoconfigure'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+}
+
+apply from: "$rootDir/gradle/publishing.gradle"

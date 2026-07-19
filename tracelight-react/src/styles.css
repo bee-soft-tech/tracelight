@@ -1,0 +1,222 @@
+/*
+ * Default Tracelight theme. Everything is driven by CSS custom properties and
+ * plain class names, so you can override any of it or skip this file entirely
+ * and style the `.tl-*` classes yourself.
+ */
+:root {
+  --tl-node-bg: #ffffff;
+  --tl-node-border: #cbd5e1;
+  --tl-node-text: #0f172a;
+  --tl-entry-bg: #1e293b;
+  --tl-entry-text: #f8fafc;
+  --tl-accent: #f59e0b;
+  --tl-count-bg: #e2e8f0;
+  --tl-count-text: #334155;
+  --tl-edge: #94a3b8;
+  --tl-flash: #22c55e;
+  --tl-bullet-idle: #ef4444;
+  --tl-error-bg: #fee2e2;
+  --tl-error-border: #ef4444;
+  --tl-error-text: #991b1b;
+}
+
+/*
+ * Dark theme. Follows the browser preference automatically, unless the host explicitly sets
+ * data-theme on a parent (e.g. <html data-theme="light|dark">), which always wins.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --tl-node-bg: #1e293b;
+    --tl-node-border: #334155;
+    --tl-node-text: #e2e8f0;
+    --tl-entry-bg: #0b1220;
+    --tl-entry-text: #f8fafc;
+    --tl-count-bg: #334155;
+    --tl-count-text: #e2e8f0;
+    --tl-edge: #64748b;
+    --tl-error-bg: #450a0a;
+    --tl-error-border: #ef4444;
+    --tl-error-text: #fecaca;
+  }
+}
+
+[data-theme='dark'] {
+  --tl-node-bg: #1e293b;
+  --tl-node-border: #334155;
+  --tl-node-text: #e2e8f0;
+  --tl-entry-bg: #0b1220;
+  --tl-entry-text: #f8fafc;
+  --tl-count-bg: #334155;
+  --tl-count-text: #e2e8f0;
+  --tl-edge: #64748b;
+  --tl-error-bg: #450a0a;
+  --tl-error-border: #ef4444;
+  --tl-error-text: #fecaca;
+}
+
+.tl-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 170px;
+  width: max-content;
+  height: 56px;
+  padding: 0 12px;
+  border: 1px solid var(--tl-node-border);
+  border-radius: 10px;
+  background: var(--tl-node-bg);
+  color: var(--tl-node-text);
+  font: 13px/1.2 ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.tl-node--entry {
+  background: var(--tl-entry-bg);
+  color: var(--tl-entry-text);
+  border-color: var(--tl-entry-bg);
+}
+
+.tl-node--error {
+  background: var(--tl-error-bg);
+  color: var(--tl-error-text);
+  border-color: var(--tl-error-border);
+  cursor: pointer;
+}
+
+.tl-node--error .tl-node__count {
+  background: var(--tl-error-border);
+  color: #ffffff;
+}
+
+.tl-node__label {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-node__count {
+  flex: 0 0 auto;
+  min-width: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tl-count-bg);
+  color: var(--tl-count-text);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.tl-node--entry .tl-node__count {
+  background: rgba(248, 250, 252, 0.18);
+  color: var(--tl-entry-text);
+}
+
+/*
+ * Status bullet: a small LED on each node. Idle is red; every traversal mounts a green
+ * overlay (re-keyed per hit) that fades via opacity — GPU-composited and cheap, and because
+ * it replays on each hit it reads as steady green under heavy traffic (like the edge flash).
+ */
+.tl-node__bullet {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tl-bullet-idle);
+  overflow: hidden;
+}
+
+.tl-node__bullet-error {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tl-error-border);
+}
+
+.tl-node__bullet-hit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tl-flash);
+  /* Duration is overridden inline to match the edge flash (flashMs); linear, like the
+     edge's SVG <animate>, so both fade identically. */
+  animation: tl-bullet 500ms linear forwards;
+}
+
+@keyframes tl-bullet {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.tl-handle {
+  width: 6px;
+  height: 6px;
+  background: var(--tl-edge);
+  border: none;
+}
+
+.tl-edge {
+  stroke: var(--tl-edge);
+  stroke-width: 1.5;
+}
+
+.tl-edge__flash {
+  stroke: var(--tl-flash);
+  stroke-width: 3;
+  fill: none;
+  pointer-events: none;
+}
+
+.tl-edge__timing {
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--tl-count-text);
+  background: var(--tl-count-bg);
+}
+
+/* Zoom / fit controls for the WebGL renderer (the React Flow renderer has its own). */
+.tl-gl-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+}
+
+.tl-gl-controls button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-bottom: 1px solid var(--tl-node-border);
+  background: var(--tl-node-bg);
+  color: var(--tl-node-text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tl-gl-controls button:last-child {
+  border-bottom: none;
+}
+
+.tl-gl-controls button:hover {
+  background: var(--tl-count-bg);
+}

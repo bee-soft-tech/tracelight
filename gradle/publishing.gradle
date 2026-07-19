@@ -1,0 +1,74 @@
+// Shared Maven Central publishing config, applied by the three library modules
+// (tracelight-core, tracelight-spring-mvc, tracelight-webflux) via `apply from`.
+// Demo apps and the load generator are NOT published.
+
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+apply plugin: 'com.gradleup.nmcp' // exposes this module's publications to the root aggregation
+
+// Maven Central requires sources and javadoc jars alongside the main artifact.
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+// The javadoc jar only needs to exist for Central; don't fail the build on doclint issues
+// (missing comments / unresolved @link references in an internal library).
+tasks.withType(Javadoc).configureEach {
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
+// Dependency versions are managed by the Spring BOM (io.spring.dependency-management), so the
+// Gradle Module Metadata (.module) would carry version-less dependencies and fail validation.
+// The published POM gets concrete versions from the BOM, which is all Maven Central needs —
+// so publish the POM only and skip the .module file.
+tasks.withType(GenerateModuleMetadata).configureEach {
+    enabled = false
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+
+            pom {
+                name = project.name
+                description = project.description ?: 'Tracelight — live, application-level request-flow visualization for Spring.'
+                url = 'https://github.com/bee-soft-tech/tracelight'
+
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'bee-soft-tech'
+                        name = 'Bosky Tomasz'
+                        url = 'https://github.com/bee-soft-tech'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/bee-soft-tech/tracelight.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/bee-soft-tech/tracelight.git'
+                    url = 'https://github.com/bee-soft-tech/tracelight'
+                }
+            }
+        }
+    }
+}
+
+// GPG signing. Keys come from the environment (CI secrets), never from a file in the repo.
+// Signing is only *required* when a key is present, so `publishToMavenLocal` works locally
+// without keys for verification.
+def signingKey = System.getenv('SIGNING_KEY') ?: (findProperty('signingKey') as String)
+def signingPassword = System.getenv('SIGNING_PASSWORD') ?: (findProperty('signingPassword') as String)
+
+signing {
+    required { signingKey != null && !signingKey.trim().isEmpty() }
+    if (signingKey != null && !signingKey.trim().isEmpty()) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    sign publishing.publications.maven
+}

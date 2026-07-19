@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: tracelight-demo-app
+
+# Tracelight is auto-configured; these are the defaults, shown for reference.
+tracelight:
+  enabled: true
+  base-path: /tracelight
+  # 0 = one "pulse" event per hit (carries traceId, so the UI can animate one dot per
+  # request flowing along its whole path). Set > 0 to coalesce into aggregated "batch"
+  # events per window (ms) for very high traffic (no per-request dot tracelight-web > runthen).
+  flush-interval-ms: 0
+
+logging:
+  level:
+    io.beesofttech.tracelight: INFO

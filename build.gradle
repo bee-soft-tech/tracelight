@@ -1,0 +1,53 @@
+plugins {
+    id 'org.springframework.boot' version '3.3.4' apply false
+    id 'io.spring.dependency-management' version '1.1.6' apply false
+    // nmcp: publish to the Maven Central Portal. The aggregation plugin runs on the root project
+    // and collects the publications exposed by each library module's `com.gradleup.nmcp` plugin.
+    id 'com.gradleup.nmcp' version '1.6.1' apply false
+    id 'com.gradleup.nmcp.aggregation' version '1.6.1'
+}
+
+allprojects {
+    group = 'io.github.bee-soft-tech'
+    // Release version comes from the git tag via the Release workflow (-PreleaseVersion=X.Y.Z).
+    // Local/CI builds without it fall back to a dev version.
+    version = findProperty('releaseVersion') ?: '0.1.0'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+}
+
+// Upload target: Sonatype Central Portal. Credentials come from the environment (CI secrets).
+// USER_MANAGED stages the deployment for a manual "Publish" click in the portal (safer for now).
+nmcpAggregation {
+    centralPortal {
+        username = providers.environmentVariable('CENTRAL_USERNAME')
+        password = providers.environmentVariable('CENTRAL_PASSWORD')
+        publishingType = 'USER_MANAGED'
+    }
+}
+
+dependencies {
+    nmcpAggregation project(':tracelight-core')
+    nmcpAggregation project(':tracelight-spring-mvc')
+    nmcpAggregation project(':tracelight-webflux')
+}
