@@ -619,6 +619,34 @@ body {
   font-size: 13px;
 }
 
+/* Right pane of the Traces tab: the request's waterfall stacked over its flow graph. */
+.trace-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.trace-detail__waterfall {
+  flex: 0 0 auto;
+  max-height: 45%;
+  overflow: auto;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--bar-border);
+}
+
+.trace-detail__graph {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+.trace-detail__empty {
+  padding: 16px 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .waterfall__head {
   display: flex;
   align-items: baseline;

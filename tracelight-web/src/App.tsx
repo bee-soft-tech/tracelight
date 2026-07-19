@@ -269,6 +269,9 @@ export default function App() {
           onImport={persisted.importFile}
           onExport={persisted.exportFile}
           onClear={clearStored}
+          graph={view}
+          colorMode={theme}
+          replaySpeed={speed}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { TraceGraph, type TracelightState } from 'tracelight-react';
 import { TraceWaterfall } from './TraceWaterfall';
 import type { StoredTrace } from './usePersistedTraces';
 
@@ -34,6 +35,10 @@ interface TracesViewProps {
   onImport: (file: File) => Promise<number>;
   onExport: () => void;
   onClear: () => void;
+  /** Route subgraph of the selected request, for the flow preview under the waterfall. */
+  graph: TracelightState;
+  colorMode: 'light' | 'dark';
+  replaySpeed: number;
 }
 
 /**
@@ -49,6 +54,9 @@ export function TracesView({
   onImport,
   onExport,
   onClear,
+  graph,
+  colorMode,
+  replaySpeed,
 }: TracesViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -162,11 +170,28 @@ export function TracesView({
           })}
         </div>
 
-        <div className="waterfall-pane">
+        <div className="trace-detail">
           {current ? (
-            <TraceWaterfall trace={current} />
+            <>
+              <div className="trace-detail__waterfall">
+                <TraceWaterfall trace={current} />
+              </div>
+              {/* The same flow graph as the Graph tab, so you see a request's route and its
+                  timeline together without switching tabs. */}
+              <div className="trace-detail__graph">
+                <TraceGraph
+                  graph={graph}
+                  colorMode={colorMode}
+                  frozen
+                  replayTrace={current}
+                  replaySpeed={replaySpeed}
+                  showControls={false}
+                  showFps={false}
+                />
+              </div>
+            </>
           ) : (
-            <div className="waterfall-pane__empty">Select a request to see its timeline.</div>
+            <div className="trace-detail__empty">Select a request to see its timeline and flow.</div>
           )}
         </div>
       </div>
