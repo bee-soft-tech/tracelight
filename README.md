@@ -6,6 +6,8 @@
 
 **See where a request is in your code — live.**
 
+**▶ [Try the live demo](https://bee-soft-tech.github.io/tracelight/)** — runs in your browser with simulated traffic, no setup.
+
 ![Tracelight live graph](docs/images/graph-webgl.png)
 
 Tracelight is a **live, application-level request-flow visualizer**. You drop a few points in
