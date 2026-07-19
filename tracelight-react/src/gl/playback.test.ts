@@ -130,6 +130,25 @@ describe('advance', () => {
     expect(res!.hop.from).toBe('n0');
   });
 
+  it('pauses an in-flight hop when its node starts being dragged, then re-plays it', () => {
+    const pb = createPlayback(0);
+    enqueue(pb, hop(0), 0);
+    // Fly a quarter of the hop.
+    const mid = advance(pb, HOP_MAX_MS / 4, resolver(), 0);
+    expect(mid!.point.x).toBeCloseTo(250, 0);
+    expect(pb.active).not.toBeNull();
+    // A drag begins on this hop's node: the dot hides and the hop is requeued, not consumed.
+    const dragN0 = (h: Hop) => h.from === 'n0';
+    expect(advance(pb, 16, resolver(), 16, undefined, undefined, dragN0)).toBeNull();
+    expect(pb.active).toBeNull();
+    expect(pb.queue).toHaveLength(1);
+    // Drag ends: the hop re-resolves and plays from its start (new trajectory), not from where
+    // the frozen path had drifted to.
+    const res = advance(pb, HOP_MAX_MS / 4, resolver(), 32);
+    expect(res!.hop.from).toBe('n0');
+    expect(res!.point.x).toBeCloseTo(250, 0);
+  });
+
   it('drops hops whose endpoints are unknown without spending time on them', () => {
     const pb = createPlayback(0);
     enqueue(pb, hop(0), 0);

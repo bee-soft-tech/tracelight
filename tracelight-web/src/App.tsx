@@ -203,7 +203,12 @@ export default function App() {
           </button>
         )}
 
-        <RouteSelect routes={routes} value={selectedRoute} onChange={setSelectedRoute} />
+        <RouteSelect
+          routes={routes}
+          value={selectedRoute}
+          onChange={setSelectedRoute}
+          disabled={reviewing}
+        />
 
         <span className="muted">
           {view.nodes.length} nodes · {view.edges.length} edges
@@ -247,6 +252,7 @@ export default function App() {
             graph={view}
             colorMode={theme}
             showTimings={showTimings}
+            showCounts={!reviewing}
             frozen={reviewing}
             replayTrace={playing ? currentTrace : null}
             replaySpeed={speed}
@@ -264,6 +270,9 @@ export default function App() {
           onImport={persisted.importFile}
           onExport={persisted.exportFile}
           onClear={clearStored}
+          graph={view}
+          colorMode={theme}
+          replaySpeed={speed}
         />
       )}
     </div>

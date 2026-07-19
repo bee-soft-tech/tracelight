@@ -151,6 +151,8 @@ export interface GLSceneOptions {
   colorMode: ColorMode;
   showFps: boolean;
   showTimings: boolean;
+  /** Show the per-node request counter (hidden when reviewing a single request). */
+  showCounts: boolean;
   /** Called with the node id when an error node is clicked (no drag). */
   onErrorSelect?: (id: string) => void;
 }
@@ -202,6 +204,7 @@ export class GLScene {
     | { kind: 'node'; id: string; offset: Point; moved: boolean }
     | null = null;
   private lastGlobal: Point = { x: 0, y: 0 };
+  private showCounts = true;
 
   private constructor(
     private readonly app: Application,
@@ -212,6 +215,7 @@ export class GLScene {
     // Edge-timing labels sit on top of everything so they stay readable.
     this.world.addChild(this.edgesLayer, this.dotsLayer, this.nodesLayer, this.labelsLayer);
     this.labelsLayer.visible = opts.showTimings;
+    this.showCounts = opts.showCounts;
     this.dragRing.visible = false;
     this.nodesLayer.addChild(this.dragRing);
     this.app.stage.addChild(this.world, this.hud);
@@ -446,10 +450,12 @@ export class GLScene {
    * frozen trajectory would drift off the moving edge — they resume after the drag); hops
    * with an unknown endpoint are dropped.
    */
+  /** True while one of the hop's endpoints is the node currently being dragged. */
+  private readonly isHopDragged = (hop: Hop): boolean =>
+    this.drag?.kind === 'node' && (hop.from === this.drag.id || hop.to === this.drag.id);
+
   private readonly resolveHop = (hop: Hop): HopGeom | null | 'defer' => {
-    if (this.drag?.kind === 'node' && (hop.from === this.drag.id || hop.to === this.drag.id)) {
-      return 'defer';
-    }
+    if (this.isHopDragged(hop)) return 'defer';
     const a = this.positions.get(hop.from);
     const b = this.positions.get(hop.to);
     if (!a || !b) return null;
@@ -466,6 +472,12 @@ export class GLScene {
 
   setShowTimings(show: boolean): void {
     this.labelsLayer.visible = show;
+  }
+
+  /** Show/hide the per-node request counters (hidden while reviewing a single request). */
+  setShowCounts(show: boolean): void {
+    this.showCounts = show;
+    this.nodeViews.forEach((v) => (v.count.visible = show));
   }
 
   setColorMode(mode: ColorMode): void {
@@ -517,6 +529,7 @@ export class GLScene {
     });
     count.y = h / 2 - count.height / 2;
     count.x = w - 12 - count.width;
+    count.visible = this.showCounts;
 
     // Error nodes show a solid red LED; normal nodes use the idle LED + green flash overlay.
     const led = new Graphics().circle(12, 11, 4).fill({ color: isError ? this.palette.errorBorder : this.palette.ledIdle });
@@ -619,7 +632,7 @@ export class GLScene {
     const now = performance.now();
 
     for (const [key, anim] of this.anims) {
-      const res = advance(anim.pb, dtMs, this.resolveHop, now, this.onHopComplete);
+      const res = advance(anim.pb, dtMs, this.resolveHop, now, this.onHopComplete, undefined, this.isHopDragged);
       if (shouldEvict(anim.pb, now, TRACE_TTL_MS)) {
         this.releaseAnim(key, anim);
         continue;
@@ -652,7 +665,7 @@ export class GLScene {
       }
       return;
     }
-    const res = advance(r.pb, dtMs, this.resolveHop, now, this.onHopComplete, this.replayDuration);
+    const res = advance(r.pb, dtMs, this.resolveHop, now, this.onHopComplete, this.replayDuration, this.isHopDragged);
     if (res) this.paintDot(r.view, r.recent, res.point);
     else this.hideDot(r.view, r.recent);
     if (isDone(r.pb)) {

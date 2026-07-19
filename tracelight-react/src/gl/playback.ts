@@ -79,12 +79,23 @@ export function advance(
   nowMs: number,
   onComplete?: (hop: Hop) => void,
   durationFor?: (hop: Hop, dist: number) => number,
+  deferred?: (hop: Hop) => boolean,
 ): { point: Point; hop: Hop } | null {
   let remaining = dtMs;
   let lastFinished: ActiveHop | null = null;
 
   for (;;) {
-    if (!pb.active) {
+    if (pb.active) {
+      // Re-validate the in-flight hop each frame: if one of its endpoints is now being dragged,
+      // pause — requeue the hop so it re-resolves onto the new trajectory once the drag ends, and
+      // hide the dot. Without this the dot keeps flying the path frozen at pop time (a stale
+      // route that no longer matches the moved node).
+      if (deferred?.(pb.active.hop)) {
+        pb.queue.unshift(pb.active.hop);
+        pb.active = null;
+        return atEnd(lastFinished);
+      }
+    } else {
       const next = pb.queue[0];
       // Queue drained (or stalled by a drag): rest on the endpoint of the hop that just
       // finished this frame, or report idle.
