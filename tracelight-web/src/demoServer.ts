@@ -99,6 +99,9 @@ const edges = (() => {
 
 const jitter = (base: number) => Math.max(0.4, base * (0.6 + Math.random() * 0.9));
 
+/** Simulated throughput of the demo — kept lively to show the renderer under load. */
+const REQUESTS_PER_SEC = 10;
+
 class MockTracelightSocket {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
@@ -125,9 +128,11 @@ class MockTracelightSocket {
         nodes: NODES.map((n) => ({ ...n, count: 0 })),
         edges: edges.map((e) => ({ ...e })),
       });
-      // Kick a few requests immediately so the graph is alive on first paint, then keep going.
-      for (let i = 0; i < 3; i++) setTimeout(() => this.fireRequest(), 150 * i);
-      this.timer = setInterval(() => this.fireRequest(), 700);
+      // Fill the first second so the graph is busy on first paint, then hold a steady rate.
+      for (let i = 0; i < REQUESTS_PER_SEC; i++) {
+        setTimeout(() => this.fireRequest(), (1000 / REQUESTS_PER_SEC) * i);
+      }
+      this.timer = setInterval(() => this.fireRequest(), 1000 / REQUESTS_PER_SEC);
     }, 120);
   }
 
