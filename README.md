@@ -2,6 +2,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.bee-soft-tech/tracelight-spring-mvc.svg?label=Maven%20Central)](https://central.sonatype.com/namespace/io.github.bee-soft-tech)
+[![npm](https://img.shields.io/npm/v/tracelight-react.svg?label=npm)](https://www.npmjs.com/package/tracelight-react)
 
 **See where a request is in your code — live.**
 
@@ -13,6 +14,63 @@ your code; the frontend shows a graph where a node **pulses**, its **counter tic
 "you are here" for your running app — the current picture, not a report after the fact.
 
 > It answers one question other tools don't: **"where in my code is traffic flowing right now?"**
+
+---
+
+## Install
+
+Tracelight ships as published packages: a **Spring backend library** on Maven Central and a
+**React frontend component** on npm.
+
+### Backend — Spring (Maven Central)
+
+Add the module that matches your stack — `tracelight-core` is pulled in transitively.
+
+**Gradle** — `build.gradle`
+
+```groovy
+// Spring MVC (servlet)
+implementation 'io.github.bee-soft-tech:tracelight-spring-mvc:0.2.0'
+// …or Spring WebFlux (reactive)
+implementation 'io.github.bee-soft-tech:tracelight-webflux:0.2.0'
+```
+
+**Gradle (Kotlin DSL)** — `build.gradle.kts`
+
+```kotlin
+implementation("io.github.bee-soft-tech:tracelight-spring-mvc:0.2.0")
+```
+
+**Maven** — `pom.xml`
+
+```xml
+<dependency>
+  <groupId>io.github.bee-soft-tech</groupId>
+  <artifactId>tracelight-spring-mvc</artifactId>
+  <version>0.2.0</version>
+</dependency>
+```
+
+That auto-configures the `/tracelight/ws` WebSocket endpoint. Mark points in your code with
+`@TracePoint` on a method or `Tracelight.hit("name")` inside a branch.
+
+### Frontend — React (npm)
+
+```bash
+npm install tracelight-react
+```
+
+```tsx
+import { TraceGraph, useTracelight } from 'tracelight-react';
+import 'tracelight-react/styles.css';
+
+function App() {
+  const graph = useTracelight('ws://localhost:8080/tracelight/ws');
+  return <TraceGraph graph={graph} />;
+}
+```
+
+Requires **React 18+** (peer dependency). Ships ESM + TypeScript types.
 
 ---
 
