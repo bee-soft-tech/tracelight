@@ -446,10 +446,12 @@ export class GLScene {
    * frozen trajectory would drift off the moving edge — they resume after the drag); hops
    * with an unknown endpoint are dropped.
    */
+  /** True while one of the hop's endpoints is the node currently being dragged. */
+  private readonly isHopDragged = (hop: Hop): boolean =>
+    this.drag?.kind === 'node' && (hop.from === this.drag.id || hop.to === this.drag.id);
+
   private readonly resolveHop = (hop: Hop): HopGeom | null | 'defer' => {
-    if (this.drag?.kind === 'node' && (hop.from === this.drag.id || hop.to === this.drag.id)) {
-      return 'defer';
-    }
+    if (this.isHopDragged(hop)) return 'defer';
     const a = this.positions.get(hop.from);
     const b = this.positions.get(hop.to);
     if (!a || !b) return null;
@@ -619,7 +621,7 @@ export class GLScene {
     const now = performance.now();
 
     for (const [key, anim] of this.anims) {
-      const res = advance(anim.pb, dtMs, this.resolveHop, now, this.onHopComplete);
+      const res = advance(anim.pb, dtMs, this.resolveHop, now, this.onHopComplete, undefined, this.isHopDragged);
       if (shouldEvict(anim.pb, now, TRACE_TTL_MS)) {
         this.releaseAnim(key, anim);
         continue;
@@ -652,7 +654,7 @@ export class GLScene {
       }
       return;
     }
-    const res = advance(r.pb, dtMs, this.resolveHop, now, this.onHopComplete, this.replayDuration);
+    const res = advance(r.pb, dtMs, this.resolveHop, now, this.onHopComplete, this.replayDuration, this.isHopDragged);
     if (res) this.paintDot(r.view, r.recent, res.point);
     else this.hideDot(r.view, r.recent);
     if (isDone(r.pb)) {
