@@ -484,15 +484,72 @@ body {
   min-height: 0;
 }
 
-.trace-list {
-  list-style: none;
-  margin: 0;
-  padding: 6px;
+/* Left column: routes, each a collapsible group of its captured requests. */
+.trace-groups {
   width: 320px;
   flex: 0 0 auto;
   overflow-y: auto;
+  padding: 6px;
   border-right: 1px solid var(--bar-border);
   background: var(--bar-bg);
+}
+
+.trace-group {
+  margin-bottom: 2px;
+}
+
+.trace-group__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+}
+
+.trace-group__header:hover {
+  background: var(--ctl-bg-hover);
+}
+
+.trace-group__header.has-active {
+  outline: 1px solid var(--ctl-border);
+}
+
+.trace-group__caret {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.trace-group__route {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.trace-group__count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ctl-bg-hover);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0 0 0 8px;
 }
 
 .trace-list__empty {

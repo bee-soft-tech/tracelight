@@ -6,6 +6,8 @@ interface RouteSelectProps {
   /** Selected entry id, or null before any route has been discovered. */
   value: string | null;
   onChange: (value: string) => void;
+  /** Lock the picker (e.g. while reviewing a single request, whose route is fixed). */
+  disabled?: boolean;
 }
 
 /**
@@ -13,11 +15,16 @@ interface RouteSelectProps {
  * routes by path, and each item shows how many requests have hit that route. Until the first
  * route arrives the control is empty and disabled.
  */
-export function RouteSelect({ routes, value, onChange }: RouteSelectProps) {
+export function RouteSelect({ routes, value, onChange, disabled = false }: RouteSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // While locked (review mode), never stay open.
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
 
   const selectedLabel =
     value == null ? 'No routes yet' : (routes.find((r) => r.id === value)?.label ?? value);
@@ -55,10 +62,10 @@ export function RouteSelect({ routes, value, onChange }: RouteSelectProps) {
         type="button"
         className="route-select__button"
         onClick={() => setOpen((o) => !o)}
-        disabled={routes.length === 0}
+        disabled={disabled || routes.length === 0}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Choose a route"
+        title={disabled ? 'Route is locked while reviewing a request' : 'Choose a route'}
       >
         <span className="route-select__value">{selectedLabel}</span>
         <span className="route-select__caret">▾</span>

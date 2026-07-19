@@ -203,7 +203,12 @@ export default function App() {
           </button>
         )}
 
-        <RouteSelect routes={routes} value={selectedRoute} onChange={setSelectedRoute} />
+        <RouteSelect
+          routes={routes}
+          value={selectedRoute}
+          onChange={setSelectedRoute}
+          disabled={reviewing}
+        />
 
         <span className="muted">
           {view.nodes.length} nodes · {view.edges.length} edges
