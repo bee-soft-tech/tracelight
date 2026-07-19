@@ -5,6 +5,9 @@ import { defineConfig } from 'vite';
 // Consume the component straight from source so JSX in the workspace package is
 // transformed by @vitejs/plugin-react (it would be skipped if resolved from node_modules).
 export default defineConfig({
+  // For the GitHub Pages project site the app is served under /tracelight/; the deploy
+  // workflow sets VITE_BASE. Local dev and normal builds stay at the root.
+  base: process.env.VITE_BASE || '/',
   plugins: [react()],
   resolve: {
     alias: [
